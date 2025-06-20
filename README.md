@@ -10,7 +10,7 @@ This project focuses on detecting fake news using Natural Language Processing (N
 
 ---
 
-## [Research Papers](#research-papers)
+<h2><a href="#research-papers" style="color: black; text-decoration: none;">Research Papers</a></h2>
 The following research papers have been selected to guide this project:
 
 - [**Feature Computation Procedure for Fake News Detection: An LLM‑based Extraction Approach**](https://www.researchgate.net/publication/392127130_Feature_computation_procedure_for_fake_news_detection_An_LLM-based_extraction_approach)
