@@ -25,7 +25,8 @@ Two balanced CSV files of political and world‑news articles published primaril
 
 *Real* articles were scraped from Reuters; *Fake* articles were sourced from outlets flagged by PolitiFact and Wikipedia. Original punctuation and spelling were preserved to maintain authenticity.
 
-#### 2. [WELFake Dataset](#https://www.kaggle.com/datasets/saurabhshahane/fake-news-classification)
+#### 2. WELFake Dataset
+ - Link: https://www.kaggle.com/datasets/saurabhshahane/fake-news-classification
 A merged corpus drawn from four public news collections (Kaggle, McIntire, Reuters, BuzzFeed Political).
 
 | Metric                     | Value                                     |
