@@ -15,7 +15,9 @@ The following research papers have been selected to guide this project:
 
 ### Data Collection
 
-#### 1. [ISOT Fake News Dataset](#https://www.kaggle.com/datasets/emineyetm/fake-news-detection-datasets)
+#### 1. ISOT Fake News Dataset
+ - Link: https://www.kaggle.com/datasets/emineyetm/fake-news-detection-datasets
+ - 
 Two balanced CSV files of political and world‑news articles published primarily in 2016–2017.
 
 | File      | Articles | Class | Key Columns                              |
@@ -27,6 +29,7 @@ Two balanced CSV files of political and world‑news articles published primaril
 
 #### 2. WELFake Dataset
  - Link: https://www.kaggle.com/datasets/saurabhshahane/fake-news-classification
+ - 
 A merged corpus drawn from four public news collections (Kaggle, McIntire, Reuters, BuzzFeed Political).
 
 | Metric                     | Value                                     |
