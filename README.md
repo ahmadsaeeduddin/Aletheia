@@ -9,15 +9,15 @@ This project focuses on detecting fake news using Natural Language Processing (N
   - [WELFake Dataset](#welfake-dataset)
 - [Data Pre-Processing](#data-pre-processing)
 
-## Research Papers
+### Research Papers
 The following research papers have been selected to guide this project:
 
 - [**Feature Computation Procedure for Fake News Detection: An LLM‑based Extraction Approach**](https://www.researchgate.net/publication/392127130_Feature_computation_procedure_for_fake_news_detection_An_LLM-based_extraction_approach)
 - [**Evidence‑Backed Fact Checking Using RAG and Few‑Shot In‑Context Learning with LLMs**](https://arxiv.org/pdf/2408.12060)
 
-## Data Collection
+### Data Collection
 
-### 1. ISOT Fake News Dataset
+#### 1. ISOT Fake News Dataset
 Two balanced CSV files of political and world‑news articles published primarily in 2016–2017.
 
 | File      | Articles | Class | Key Columns                              |
@@ -27,7 +27,7 @@ Two balanced CSV files of political and world‑news articles published primaril
 
 *Real* articles were scraped from Reuters; *Fake* articles were sourced from outlets flagged by PolitiFact and Wikipedia. Original punctuation and spelling were preserved to maintain authenticity.
 
-### 2. WELFake Dataset
+#### 2. WELFake Dataset
 A merged corpus drawn from four public news collections (Kaggle, McIntire, Reuters, BuzzFeed Political).
 
 | Metric                     | Value                                     |
@@ -39,7 +39,7 @@ A merged corpus drawn from four public news collections (Kaggle, McIntire, Reute
 
 The aggregation reduces over‑fitting risk and provides a larger, domain‑diverse training set.
 
-## Data Pre-Processing
+### Data Pre-Processing
 
 The preprocessing pipeline prepares raw news data into a clean and structured format suitable for training. It consists of the following steps:
 
