@@ -5,8 +5,8 @@ This project focuses on detecting fake news using Natural Language Processing (N
 ## Table of Contents
 - [Research Papers](#research-papers)
 - [Data Collection](#data-collection)
-  - [ISOT Fake News Dataset](#isot-fake-news-dataset)
-  - [WELFake Dataset](#welfake-dataset)
+  - [ISOT Fake News Dataset](#https://www.kaggle.com/datasets/emineyetm/fake-news-detection-datasets)
+  - [WELFake Dataset](#https://www.kaggle.com/datasets/saurabhshahane/fake-news-classification)
 - [Data Pre-Processing](#data-pre-processing)
 
 ### Research Papers
