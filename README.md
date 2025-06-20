@@ -1,7 +1,6 @@
 # Fake News Detection
 
 This project focuses on detecting fake news using Natural Language Processing (NLP) techniques and Large Language Models (LLMs). It aims to identify and classify news articles as real or fake by analyzing their content, leveraging modern machine learning methodologies and pretrained language models.
-
 ## Table of Contents
 - [Research Papers](#research-papers)
 - [Data Collection](#data-collection)
