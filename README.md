@@ -5,8 +5,6 @@ This project focuses on detecting fake news using Natural Language Processing (N
 ## Table of Contents
 - [Research Papers](#research-papers)
 - [Data Collection](#data-collection)
-  - [ISOT Fake News Dataset](#https://www.kaggle.com/datasets/emineyetm/fake-news-detection-datasets)
-  - [WELFake Dataset](#https://www.kaggle.com/datasets/saurabhshahane/fake-news-classification)
 - [Data Pre-Processing](#data-pre-processing)
 
 ### Research Papers
@@ -17,7 +15,7 @@ The following research papers have been selected to guide this project:
 
 ### Data Collection
 
-#### 1. ISOT Fake News Dataset
+#### 1. [ISOT Fake News Dataset](#https://www.kaggle.com/datasets/emineyetm/fake-news-detection-datasets)
 Two balanced CSV files of political and world‑news articles published primarily in 2016–2017.
 
 | File      | Articles | Class | Key Columns                              |
@@ -27,7 +25,7 @@ Two balanced CSV files of political and world‑news articles published primaril
 
 *Real* articles were scraped from Reuters; *Fake* articles were sourced from outlets flagged by PolitiFact and Wikipedia. Original punctuation and spelling were preserved to maintain authenticity.
 
-#### 2. WELFake Dataset
+#### 2. [WELFake Dataset](#https://www.kaggle.com/datasets/saurabhshahane/fake-news-classification)
 A merged corpus drawn from four public news collections (Kaggle, McIntire, Reuters, BuzzFeed Political).
 
 | Metric                     | Value                                     |
