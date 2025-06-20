@@ -17,9 +17,9 @@ The following research papers have been selected to guide this project:
 
 ---
 
-## [Data Collection](#data-collection)
+## Data Collection
 
-### [ISOT Fake News Dataset](#isot-fake-news-dataset)
+### ISOT Fake News Dataset
 Dataset 1:
 https://www.kaggle.com/datasets/emineyetm/fake-news-detection-datasets
 
