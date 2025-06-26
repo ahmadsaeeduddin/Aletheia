@@ -12,6 +12,7 @@ The following research papers have been selected to guide this project:
 
 - [**Feature Computation Procedure for Fake News Detection: An LLM‑based Extraction Approach**](https://www.researchgate.net/publication/392127130_Feature_computation_procedure_for_fake_news_detection_An_LLM-based_extraction_approach)
 - [**Evidence‑Backed Fact Checking Using RAG and Few‑Shot In‑Context Learning with LLMs**](https://arxiv.org/pdf/2408.12060)
+- [**WELFake: Word Embedding Over Linguistic Features for Fake News Detection**](https://ieeexplore.ieee.org/stamp/stamp.jsp?tp=&arnumber=9395133)
 
 ### Data Collection
 
