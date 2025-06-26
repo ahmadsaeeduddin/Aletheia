@@ -127,3 +127,95 @@ This pipeline prepares news text data (e.g., for fake news detection) by cleanin
       - `text` ≤ 80 characters
       - `title` ≤ 20 characters
     - Displays sample entries, counts, and visual summaries and removes them
+
+### a) Supervised Learning Comparisons using Multiple Classifiers & Deep Learning
+
+![Python](https://img.shields.io/badge/Python-3.8%2B-green)
+![PyTorch](https://img.shields.io/badge/PyTorch-1.10%2B-orange)
+![scikit-learn](https://img.shields.io/badge/scikit--learn-1.0%2B-yellow)
+
+A comprehensive machine learning system for detecting fake news articles using both traditional ML models and deep learning approaches.
+
+- **Multi-Model Comparison**: Evaluates 5 different classifiers including Logistic Regression, Random Forest, and SVM variants
+- **Advanced NLP Features**: Incorporates paraphrasing rate, subjectivity ratio, sentiment intensity, and manipulative scoring
+- **Deep Learning**: PyTorch-based neural network with hyperparameter optimization
+- **Transformer Support**: Includes DistilBERT for text classification
+
+##### 1. Feature Engineering
+  - Sentence-level analysis using NLP techniques
+  - Features include paraphrasing rate, subjectivity ratio, sentiment intensity, and manipulative score
+  - Utilizes BERT-based sentence embeddings for semantic analysis
+
+##### 2. Deep Learning Model
+  - Custom neural network classifier with batch normalization and dropout layers
+  - Hyperparameter optimization using Optuna
+  - Early stopping to prevent overfitting
+
+######  Model Architecture
+```
+FakeNewsClassifier(
+  (net): Sequential(
+    (0): Linear(in_features=389, out_features=512)
+    (1): BatchNorm1d(512)
+    (2): LeakyReLU()
+    (3): Dropout(p=0.4)
+    (4): Linear(in_features=512, out_features=256)
+    (5): BatchNorm1d(256)
+    (6): LeakyReLU()
+    (7): Dropout(p=0.4)
+    (8): Linear(in_features=256, out_features=1)
+  )
+)
+```
+###### Best Hyperparameters (Optuna)
+```
+{
+  "hidden1": 364,
+  "hidden2": 456,
+  "dropout": 0.4849,
+  "lr": 0.000209
+}
+```
+ - Training done. Best test accuracy: 0.5503
+
+##### 3. Transformer-Based Classifiers (DistilBERT)
+
+```
+classifiers = {
+    "Logistic Regression": {
+        "model": LogisticRegression(random_state=42, max_iter=1000),
+        "data": "scaled",
+        "description": "Linear baseline classifier"
+    },
+    
+    "Random Forest": {
+        "model": RandomForestClassifier(n_estimators=100, random_state=42, n_jobs=-1),
+        "data": "original",
+        "description": "Ensemble method for non-linear patterns"
+    },
+
+    "SVM (RBF)": {
+        "model": SVC(kernel='rbf', random_state=42, probability=True),
+        "data": "scaled",
+        "description": "Support Vector Machine with RBF kernel"
+    },
+    
+    "SVM (Linear)": {
+        "model": SVC(kernel='linear', random_state=42, probability=True),
+        "data": "scaled",
+        "description": "Linear Support Vector Machine"
+    },
+    
+    "Gaussian Naive Bayes": {
+        "model": GaussianNB(),
+        "data": "minmax",
+        "description": "Probabilistic classifier"
+    }
+}
+```
+###### Performance
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/5ea1a946-0a31-4cfd-a37d-e034d40bfda4" width="600"/>
+</p>
+
+
