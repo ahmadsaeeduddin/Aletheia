@@ -6,17 +6,22 @@ This project focuses on detecting fake news using Natural Language Processing (N
 - [Research Papers](#research-papers)
 - [Data Collection](#data-collection)
 - [Data Pre-Processing](#data-pre-processing)
+- [Text Processing](#text-processing)
 
 ### Research Papers
-The following research papers have been selected to guide this project:
-
+The following research papers have been selected to guide this project wiht multiple approaches:
+##### Approach 1:
 - [**Feature Computation Procedure for Fake News Detection: An LLM‑based Extraction Approach**](https://www.researchgate.net/publication/392127130_Feature_computation_procedure_for_fake_news_detection_An_LLM-based_extraction_approach)
-- [**Evidence‑Backed Fact Checking Using RAG and Few‑Shot In‑Context Learning with LLMs**](https://arxiv.org/pdf/2408.12060)
+- [**Enhancing Fake News Detection with Word Embedding: A Machine Learning and Deep Learning Approach**](https://www.mdpi.com/2073-431X/13/9/239)
 - [**WELFake: Word Embedding Over Linguistic Features for Fake News Detection**](https://ieeexplore.ieee.org/stamp/stamp.jsp?tp=&arnumber=9395133)
+##### Approach 2:
+- [**Evidence‑Backed Fact Checking Using RAG and Few‑Shot In‑Context Learning with LLMs**](https://arxiv.org/pdf/2408.12060)
+
+# Approach 1 
 
 ### Data Collection
 
-#### 1. ISOT Fake News Dataset
+##### 1. ISOT Fake News Dataset
  - Link: https://www.kaggle.com/datasets/emineyetm/fake-news-detection-datasets
 
 Two balanced CSV files of political and world‑news articles published primarily in 2016–2017.
@@ -27,8 +32,9 @@ Two balanced CSV files of political and world‑news articles published primaril
 | `Fake.csv`| 12,600+  | Fake  | `title`, `text`, `type`, `date`          |
 
 *Real* articles were scraped from Reuters; *Fake* articles were sourced from outlets flagged by PolitiFact and Wikipedia. Original punctuation and spelling were preserved to maintain authenticity.
+ The cleaned text is then written back to the DataFrame, ready for feature extraction and model training.
 
-#### 2. WELFake Dataset
+##### 2. WELFake Dataset
  - Link: https://www.kaggle.com/datasets/saurabhshahane/fake-news-classification
 
 A merged corpus drawn from four public news collections (Kaggle, McIntire, Reuters, BuzzFeed Political).
@@ -42,7 +48,7 @@ A merged corpus drawn from four public news collections (Kaggle, McIntire, Reute
 
 The aggregation reduces over‑fitting risk and provides a larger, domain‑diverse training set.
 
-### Data Pre-Processing
+### Data Pre-Processing 
 
 The preprocessing pipeline prepares raw news data into a clean and structured format suitable for training. It consists of the following steps:
 
@@ -78,6 +84,46 @@ The preprocessing pipeline prepares raw news data into a clean and structured fo
    - Converts text to lowercase  
    - Removes line breaks  
    - Strips digits and punctuation  
-   - Collapses multiple spaces into one  
+   - Collapses multiple spaces into one
 
-   The cleaned text is then written back to the DataFrame, ready for feature extraction and model training.
+   After the data is saved, the texts are further processed
+
+ ### Text Processing
+
+This pipeline prepares news text data (e.g., for fake news detection) by cleaning, processing, and analyzing both content and metadata.
+
+1. **Contraction Handling**
+   - Fixes broken contractions (e.g., `couldn t` → `couldn't`)
+   - Expands standard contractions using custom regex patterns and the `contractions` library
+
+2. **Text Cleaning Steps**
+    Text is cleaned by:
+     - Removing social media artifacts (handles, hashtags, URLs)
+     - Stripping special characters and fixing formatting issues
+     - Converting to lowercase and removing repeated content
+
+3. **Advanced Token Processing**
+    - Tokenizes text into words
+    - Optionally removes stopwords
+    - Applies stemming or lemmatization
+    - Filters out punctuation and short tokens (≤ 2 characters)
+
+4. **DataFrame Preprocessing**
+    - Applies cleaning to both `text` and `title` columns
+    - Adds cleaned versions and calculates text lengths
+    - Filters out very short entries (less than 50 characters)
+
+5. **Final Dataset Preparation**
+    - Saves cleaned outputs to:
+      - `final_data.csv` — simplified dataset for model input
+
+6. **Exploratory Data Analysis**
+    - Analyzes label distribution
+    - Visualizes text/word length distributions
+    - Highlights class imbalance and structural data issues
+
+7. **Short Text Detection for Removal**
+    - Identifies short entries :
+      - `text` ≤ 80 characters
+      - `title` ≤ 20 characters
+    - Displays sample entries, counts, and visual summaries and removes them
