@@ -13,6 +13,8 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import TimeoutException, NoSuchElementException
 import dateutil.parser
 import logging
+import fitz  # PyMuPDF
+import os
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -126,47 +128,101 @@ class ContentScraper:
         
         return meta_data
     
+    def _parse_date(self, date_string):
+        """Parse various date formats"""
+        if not date_string:
+            return None
+        
+        try:
+            # Try parsing with dateutil (handles most formats)
+            parsed_date = dateutil.parser.parse(date_string)
+            return parsed_date.isoformat()
+        except:
+            # Try common patterns
+            patterns = [
+                r'\d{4}-\d{2}-\d{2}',
+                r'\d{2}/\d{2}/\d{4}',
+                r'\d{2}-\d{2}-\d{4}',
+                r'\w+ \d{1,2}, \d{4}'
+            ]
+            
+            for pattern in patterns:
+                match = re.search(pattern, date_string)
+                if match:
+                    try:
+                        parsed_date = dateutil.parser.parse(match.group())
+                        return parsed_date.isoformat()
+                    except:
+                        continue
+        
+        return date_string  # Return original if parsing fails
+
+
+    def _extract_text_from_element(self, element):
+        lines = []
+
+        if element.name in ['h1', 'h2', 'h3']:
+            lines.append(f"\n\n## {element.get_text(strip=True)}")
+        elif element.name == 'li':
+            lines.append(f"- {element.get_text(strip=True)}")
+        elif element.name == 'p':
+            lines.append(element.get_text(strip=True))
+        elif element.name in ['ul', 'ol', 'div']:
+            # Recursively process only direct children
+            for child in element.find_all(recursive=False):
+                lines.extend(self._extract_text_from_element(child))
+
+        return lines
+
+
     def _extract_article_content(self, soup, platform):
-        """Extract article content based on common patterns"""
+        """Extract structured article content without duplication, handling nested structures."""
         content_selectors = [
+            '[itemprop="articleBody"]',
+            '[class*="article-content"]',
+            '[class*="article-body"]',
+            '[class*="story-body"]',
+            '[class*="post-content"]',
+            '[class*="wysiwyg"]',
+            '[class*="entry-content"]',
             'article',
-            '[role="main"]',
-            '.post-content',
-            '.entry-content',
-            '.article-body',
-            '.story-body',
-            '.content',
             'main'
         ]
-        
-        text_content = ""
-        
+
+        best_block = None
+        max_score = 0
+
         for selector in content_selectors:
-            elements = soup.select(selector)
-            if elements:
-                for element in elements:
-                    # Remove script and style elements
-                    for script in element(["script", "style", "nav", "header", "footer", "aside"]):
-                        script.decompose()
-                    
-                    # Extract text
-                    element_text = element.get_text(strip=True, separator=' ')
-                    if len(element_text) > len(text_content):
-                        text_content = element_text
-                
-                if text_content:
-                    break
-        
-        # Fallback to body content if no specific content found
-        if not text_content:
-            body = soup.find('body')
-            if body:
-                for script in body(["script", "style", "nav", "header", "footer", "aside"]):
-                    script.decompose()
-                text_content = body.get_text(strip=True, separator=' ')
-        
-        return text_content
-    
+            for element in soup.select(selector):
+                for tag in element(['script', 'style', 'nav', 'footer', 'aside', 'form', 'iframe', '.adsbygoogle']):
+                    tag.decompose()
+
+                score = len(element.find_all('p')) + len(element.find_all(['h2', 'h3', 'li']))
+                if score > max_score:
+                    best_block = element
+                    max_score = score
+
+        if not best_block:
+            return ""
+
+        lines = []
+        processed = set()
+
+        for tag in best_block.find_all(['h1', 'h2', 'h3', 'li', 'p', 'ul', 'ol'], recursive=True):
+            text = tag.get_text(strip=True)
+            if text and text not in processed:
+                if tag.name in ['h1', 'h2', 'h3']:
+                    lines.append(f"\n\n## {text}")
+                elif tag.name == 'li':
+                    lines.append(f"- {text}")
+                else:  # for p, div, ul, ol
+                    lines.append(text)
+                processed.add(text)
+
+        return '\n'.join(lines)
+
+
+
     def _extract_twitter_content(self, soup):
         """Extract Twitter-specific content"""
         data = {}
@@ -197,6 +253,14 @@ class ContentScraper:
                 data['author'] = element.get_text(strip=True)
                 break
         
+        # Extract images
+        data['images'] = self._extract_images(soup, [
+            'img[src*="pbs.twimg.com"]',
+            '[data-testid="tweetPhoto"] img',
+            '.media img',
+            'img[alt*="Image"]'
+        ])
+        
         return data
     
     def _extract_facebook_content(self, soup):
@@ -216,9 +280,163 @@ class ContentScraper:
                 data['text'] = element.get_text(strip=True)
                 break
         
+        # Extract images
+        data['images'] = self._extract_images(soup, [
+            'img[src*="fbcdn.net"]',
+            '.spotlight img',
+            '[data-testid="photo"] img',
+            '.userContentWrapper img',
+            'img[alt*="Photo"]'
+        ])
+        
         return data
     
-    def _parse_date(self, date_string):
+    from urllib.parse import urljoin, urlparse
+
+    def _extract_images(self, soup, page_url, specific_selectors=None):
+        """Extract and normalize all image URLs from the page"""
+        images = {}
+        image_urls = set()  # Avoid duplicates
+
+        # Try specific selectors first
+        if specific_selectors:
+            for selector in specific_selectors:
+                imgs = soup.select(selector)
+                for img in imgs:
+                    src = img.get('src') or img.get('data-src') or img.get('data-lazy-src')
+                    if src and self._is_valid_image_url(src):
+                        image_urls.add(src)
+
+        # Fallback to general image extraction
+        if not image_urls:
+            all_imgs = soup.find_all('img')
+            for img in all_imgs:
+                src = img.get('src') or img.get('data-src') or img.get('data-lazy-src')
+                if src and self._is_valid_image_url(src):
+                    # Skip very small UI images
+                    width = img.get('width')
+                    height = img.get('height')
+                    if width and height:
+                        try:
+                            if int(width) < 50 or int(height) < 50:
+                                continue
+                        except (ValueError, TypeError):
+                            pass
+                    image_urls.add(src)
+
+        # Normalize and assign image URLs
+        for i, src in enumerate(sorted(image_urls), 1):
+            # Normalize using page_url
+            full_url = urljoin(page_url, src)
+            images[f'image{i}'] = full_url
+
+        return images
+
+    
+    def _is_valid_image_url(self, url):
+        """Check if URL is a valid image URL"""
+        if not url or url == '#':
+            return False
+        
+        # Skip base64 encoded images (too long for practical use)
+        if url.startswith('data:image'):
+            return False
+        
+        # Skip obvious non-image URLs
+        skip_patterns = [
+            'logo', 'icon', 'avatar', 'profile',
+            'ads', 'tracking', 'pixel',
+            '.svg', 'placeholder'
+        ]
+        
+        url_lower = url.lower()
+        for pattern in skip_patterns:
+            if pattern in url_lower and any(ext in url_lower for ext in ['.gif', '.png', '.jpg', '.jpeg']):
+                # Only skip if it's clearly a small UI element
+                if any(size in url_lower for size in ['16x16', '32x32', '24x24', 'small', 'tiny']):
+                    return False
+        
+        # Accept common image extensions or social media image patterns
+        valid_patterns = [
+            '.jpg', '.jpeg', '.png', '.gif', '.webp',
+            'pbs.twimg.com', 'fbcdn.net', 'imgur.com',
+            'media', 'photo', 'image'
+        ]
+        
+        return any(pattern in url_lower for pattern in valid_patterns)
+    
+    def _extract_reddit_content(self, soup):
+        """Extract Reddit-specific content"""
+        data = {}
+        
+        # Reddit post title
+        title_selectors = [
+            '[data-test-id="post-content"] h1',
+            '.Post h1',
+            '[data-click-id="text"] h1',
+            'h1[class*="title"]'
+        ]
+        
+        for selector in title_selectors:
+            element = soup.select_one(selector)
+            if element:
+                data['title'] = element.get_text(strip=True)
+                break
+        
+        # Reddit post content/text
+        text_selectors = [
+            '[data-test-id="post-content"] div[class*="text"]',
+            '.Post div[class*="text"]',
+            '[data-click-id="text"] div',
+            'div[class*="usertext-body"]'
+        ]
+        
+        for selector in text_selectors:
+            element = soup.select_one(selector)
+            if element:
+                data['text'] = element.get_text(strip=True)
+                break
+        
+        # Reddit author (username)
+        author_selectors = [
+            '[data-test-id="post-content"] a[href*="/user/"]',
+            'a[class*="author"]',
+            'a[href*="/u/"]'
+        ]
+        
+        for selector in author_selectors:
+            element = soup.select_one(selector)
+            if element:
+                author_text = element.get_text(strip=True)
+                data['author'] = author_text.replace('u/', '').replace('/u/', '')
+                break
+        
+        # Reddit subreddit
+        subreddit_selectors = [
+            'a[href*="/r/"]',
+            '[data-test-id="subreddit-name"]'
+        ]
+        
+        for selector in subreddit_selectors:
+            element = soup.select_one(selector)
+            if element:
+                subreddit_text = element.get_text(strip=True)
+                data['subreddit'] = subreddit_text.replace('r/', '').replace('/r/', '')
+                break
+        
+        # Extract Reddit images
+        data['images'] = self._extract_images(soup, [
+            'img[src*="i.redd.it"]',
+            'img[src*="reddit.com"]',
+            'img[src*="imgur.com"]',
+            '[data-test-id="post-content"] img',
+            '.Post img',
+            'img[alt*="Post image"]'
+        ])
+        
+        return data
+        
+        
         """Parse various date formats"""
         if not date_string:
             return None
@@ -247,10 +465,48 @@ class ContentScraper:
         
         return date_string  # Return original if parsing fails
     
+
+    def _extract_pdf_content(self, url):
+        logger.info(f"Downloading PDF: {url}")
+        response = self.session.get(url)
+        response.raise_for_status()
+
+        with open("temp.pdf", "wb") as f:
+            f.write(response.content)
+
+        text = ""
+        doc = fitz.open("temp.pdf")
+        for page in doc:
+            text += page.get_text()
+        doc.close()
+        os.remove("temp.pdf")
+
+        return {
+            'url': url,
+            'platform': urlparse(url).netloc,
+            'is_social_media': False,
+            'scraped_at': datetime.now().isoformat(),
+            'title': "",
+            'text': text.strip(),
+            'author': "",
+            'publisher': urlparse(url).netloc,
+            'published_date': None,
+            'site_name': urlparse(url).netloc,
+            'images': {}
+        }
+
     def scrape_content(self, url):
         """Main scraping function"""
         logger.info(f"Starting to scrape: {url}")
         
+        try:
+            head = self.session.head(url, allow_redirects=True, timeout=10)
+            content_type = head.headers.get('Content-Type', '').lower()
+            if content_type.startswith('application/pdf') or url.lower().endswith('.pdf'):
+                return self._extract_pdf_content(url)
+        except Exception as e:
+            logger.warning(f"Failed to check content type: {e}")
+
         # Identify platform
         platform, is_social = self._identify_platform(url)
         
@@ -266,7 +522,8 @@ class ContentScraper:
         
         # Extract meta data
         meta_data = self._extract_meta_tags(soup)
-        
+
+
         # Initialize result structure
         result = {
             'url': url,
@@ -278,7 +535,8 @@ class ContentScraper:
             'author': '',
             'publisher': '',
             'published_date': None,
-            'site_name': platform
+            'site_name': platform,
+            'images': {}
         }
         
         # Extract title
@@ -300,9 +558,20 @@ class ContentScraper:
         elif platform == 'Facebook':
             facebook_data = self._extract_facebook_content(soup)
             result.update(facebook_data)
+        elif platform == 'Reddit':
+            reddit_data = self._extract_reddit_content(soup)
+            result.update(reddit_data)
         else:
             # Generic article extraction
             result['text'] = self._extract_article_content(soup, platform)
+            # Extract images for articles
+            result['images'] = self._extract_images(soup, url,[
+                'img[src*="cdn"]',
+                'figure img',
+                '.featured-image img',
+                '.post-image img',
+                'article img'
+            ])
         
         # Extract author/publisher
         if not result['author']:
@@ -347,7 +616,7 @@ class ContentScraper:
         """Save scraped data to JSON file"""
         if filename is None:
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            filename = f"scraped_content_{timestamp}.json"
+            filename = f"data_{timestamp}.json"
         
         with open(filename, 'w', encoding='utf-8') as f:
             json.dump(data, f, indent=2, ensure_ascii=False)
@@ -366,29 +635,27 @@ def scrape_url(url, output_file=None):
         logger.error(f"Error scraping {url}: {e}")
         raise
 
+
 # Example usage
 if __name__ == "__main__":
-    # Example URLs for testing
-    test_urls = [
-        "https://theintercept.com/2025/06/24/zohran-mamdani-andrew-cuomo-nyc-mayor/"
-    ]
+    # Ask for user input
+    url = input("Please enter a URL to scrape: ")
     
     scraper = ContentScraper()
     
-    for url in test_urls:
-        try:
-            print(f"\nScraping: {url}")
-            result = scraper.scrape_content(url)
-            
-            # Print summary
-            print(f"Platform: {result['platform']}")
-            print(f"Title: {result['title'][:100]}...")
-            print(f"Text length: {len(result['text'])} characters")
-            print(f"Author: {result['author']}")
-            print(f"Published: {result['published_date']}")
-            
-            # Save to JSON
-            scraper.save_to_json(result)
-            
-        except Exception as e:
-            print(f"Error: {e}")
+    try:
+        print(f"\nScraping: {url}")
+        result = scraper.scrape_content(url)
+        
+        # Print summary
+        print(f"Platform: {result['platform']}")
+        print(f"Title: {result['title'][:100]}...")
+        print(f"Text length: {len(result['text'])} characters")
+        print(f"Author: {result['author']}")
+        print(f"Published: {result['published_date']}")
+        
+        # Save to JSON
+        scraper.save_to_json(result)
+        
+    except Exception as e:
+        print(f"Error: {e}")
