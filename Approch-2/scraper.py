@@ -173,6 +173,71 @@ class ContentScraper:
                 lines.extend(self._extract_text_from_element(child))
 
         return lines
+    
+    def _extract_authors(self, soup):
+        """Extract author(s) from the article page."""
+        author_selectors = [
+            '[class*="byline"]',
+            '[class*="author"]',
+            '[itemprop="author"]',
+            'a[href*="/author/"]',
+        ]
+
+        authors = set()
+
+        for selector in author_selectors:
+            for tag in soup.select(selector):
+                text = tag.get_text(" ", strip=True)
+                if not text:
+                    continue
+
+                # Remove "By" and split common connectors
+                cleaned = (
+                    text.replace("By ", "")
+                    .replace("BY ", "")
+                    .replace("by ", "")
+                    .replace(" and ", ",")
+                    .replace("&", ",")
+                )
+
+                for part in cleaned.split(","):
+                    part = part.strip()
+                    if part and len(part.split()) <= 4:  # Avoid junk strings
+                        authors.add(part)
+
+        return sorted(authors)
+
+    def _extract_authors(self, soup):
+        """Extract and clean author names."""
+        author_selectors = [
+            '[class*="byline"]',
+            '[class*="author"]',
+            '[itemprop="author"]',
+            'a[href*="/author/"]',
+        ]
+
+        authors = set()
+
+        for selector in author_selectors:
+            for tag in soup.select(selector):
+                text = tag.get_text(" ", strip=True)
+                if not text:
+                    continue
+
+                cleaned = (
+                    text.replace("By ", "")
+                    .replace("BY ", "")
+                    .replace("by ", "")
+                    .replace(" and ", ",")
+                    .replace("&", ",")
+                )
+
+                for part in cleaned.split(","):
+                    part = part.strip()
+                    if part and len(part.split()) <= 4:
+                        authors.add(part.title())
+
+        return sorted(authors)
 
 
     def _extract_article_content(self, soup, platform):
@@ -215,12 +280,35 @@ class ContentScraper:
                     lines.append(f"\n\n## {text}")
                 elif tag.name == 'li':
                     lines.append(f"- {text}")
-                else:  # for p, div, ul, ol
+                else:
                     lines.append(text)
                 processed.add(text)
 
         return '\n'.join(lines)
 
+
+    def _extract_tweet_images(self, soup):
+        """Extract images from a tweet card on Twitter/X."""
+        images = {}
+        count = 1
+
+        # Find <img> tags inside tweet containers
+        for img in soup.select('[data-testid="tweetPhoto"] img'):
+            src = img.get('src')
+            if src:
+                images[f'image{count}'] = src
+                count += 1
+
+        # Fallback: background-image from inline styles
+        for div in soup.select('[data-testid="tweetPhoto"] div[style]'):
+            style = div.get('style', '')
+            if 'background-image' in style:
+                match = re.search(r'url\(["\']?(.*?)["\']?\)', style)
+                if match:
+                    images[f'image{count}'] = match.group(1)
+                    count += 1
+
+        return images
 
 
     def _extract_twitter_content(self, soup):
@@ -254,15 +342,11 @@ class ContentScraper:
                 break
         
         # Extract images
-        data['images'] = self._extract_images(soup, [
-            'img[src*="pbs.twimg.com"]',
-            '[data-testid="tweetPhoto"] img',
-            '.media img',
-            'img[alt*="Image"]'
-        ])
-        
+        data['images'] = self._extract_tweet_images(soup)
+
         return data
-    
+
+
     def _extract_facebook_content(self, soup):
         """Extract Facebook-specific content"""
         data = {}
@@ -281,7 +365,8 @@ class ContentScraper:
                 break
         
         # Extract images
-        data['images'] = self._extract_images(soup, [
+        data['images'] = self._extract_images(soup,self.driver.current_url,
+            [
             'img[src*="fbcdn.net"]',
             '.spotlight img',
             '[data-testid="photo"] img',
@@ -295,6 +380,11 @@ class ContentScraper:
 
     def _extract_images(self, soup, page_url, specific_selectors=None):
         """Extract and normalize all image URLs from the page"""
+        
+        if not soup:
+            return {}
+        
+        
         images = {}
         image_urls = set()  # Avoid duplicates
 
@@ -368,102 +458,46 @@ class ContentScraper:
     def _extract_reddit_content(self, soup):
         """Extract Reddit-specific content"""
         data = {}
-        
-        # Reddit post title
-        title_selectors = [
-            '[data-test-id="post-content"] h1',
-            '.Post h1',
-            '[data-click-id="text"] h1',
-            'h1[class*="title"]'
-        ]
-        
-        for selector in title_selectors:
-            element = soup.select_one(selector)
-            if element:
-                data['title'] = element.get_text(strip=True)
-                break
-        
-        # Reddit post content/text
-        text_selectors = [
+
+        def safe_get(selector_list, attr=None, text=True):
+            for selector in selector_list:
+                element = soup.select_one(selector)
+                if element:
+                    if attr:
+                        value = element.get(attr)
+                        if value:
+                            return value.strip()
+                    elif text:
+                        return element.get_text(strip=True)
+            return ''
+
+        # Reddit post title from new Reddit format (shreddit-title tag)
+        data['title'] = safe_get(['shreddit-title'])
+
+        # Reddit post text (if available)
+        data['text'] = safe_get([
             '[data-test-id="post-content"] div[class*="text"]',
             '.Post div[class*="text"]',
             '[data-click-id="text"] div',
-            'div[class*="usertext-body"]'
-        ]
+            'div[class*="usertext-body"]',
+            'shreddit-post[post-title]'  # Custom attribute
+        ], attr='post-title', text=False)
+
+        # Reddit author (from custom attribute)
+        data['author'] = safe_get([
+            'shreddit-post'
+        ], attr='author', text=False)
+
+        # Subreddit name
+        data['subreddit'] = safe_get([
+            'shreddit-post'
+        ], attr='subreddit-name', text=False)
+
+        # Extract Reddit images (thumbnails etc.)
         
-        for selector in text_selectors:
-            element = soup.select_one(selector)
-            if element:
-                data['text'] = element.get_text(strip=True)
-                break
-        
-        # Reddit author (username)
-        author_selectors = [
-            '[data-test-id="post-content"] a[href*="/user/"]',
-            'a[class*="author"]',
-            'a[href*="/u/"]'
-        ]
-        
-        for selector in author_selectors:
-            element = soup.select_one(selector)
-            if element:
-                author_text = element.get_text(strip=True)
-                data['author'] = author_text.replace('u/', '').replace('/u/', '')
-                break
-        
-        # Reddit subreddit
-        subreddit_selectors = [
-            'a[href*="/r/"]',
-            '[data-test-id="subreddit-name"]'
-        ]
-        
-        for selector in subreddit_selectors:
-            element = soup.select_one(selector)
-            if element:
-                subreddit_text = element.get_text(strip=True)
-                data['subreddit'] = subreddit_text.replace('r/', '').replace('/r/', '')
-                break
-        
-        # Extract Reddit images
-        data['images'] = self._extract_images(soup, [
-            'img[src*="i.redd.it"]',
-            'img[src*="reddit.com"]',
-            'img[src*="imgur.com"]',
-            '[data-test-id="post-content"] img',
-            '.Post img',
-            'img[alt*="Post image"]'
-        ])
-        
+
         return data
-        
-        
-        """Parse various date formats"""
-        if not date_string:
-            return None
-        
-        try:
-            # Try parsing with dateutil (handles most formats)
-            parsed_date = dateutil.parser.parse(date_string)
-            return parsed_date.isoformat()
-        except:
-            # Try common patterns
-            patterns = [
-                r'\d{4}-\d{2}-\d{2}',
-                r'\d{2}/\d{2}/\d{4}',
-                r'\d{2}-\d{2}-\d{4}',
-                r'\w+ \d{1,2}, \d{4}'
-            ]
-            
-            for pattern in patterns:
-                match = re.search(pattern, date_string)
-                if match:
-                    try:
-                        parsed_date = dateutil.parser.parse(match.group())
-                        return parsed_date.isoformat()
-                    except:
-                        continue
-        
-        return date_string  # Return original if parsing fails
+
     
 
     def _extract_pdf_content(self, url):
@@ -485,7 +519,6 @@ class ContentScraper:
             'url': url,
             'platform': urlparse(url).netloc,
             'is_social_media': False,
-            'scraped_at': datetime.now().isoformat(),
             'title': "",
             'text': text.strip(),
             'author': "",
@@ -524,12 +557,12 @@ class ContentScraper:
         meta_data = self._extract_meta_tags(soup)
 
 
+
         # Initialize result structure
         result = {
             'url': url,
             'platform': platform,
             'is_social_media': is_social,
-            'scraped_at': datetime.now().isoformat(),
             'title': '',
             'text': '',
             'author': '',
@@ -564,6 +597,7 @@ class ContentScraper:
         else:
             # Generic article extraction
             result['text'] = self._extract_article_content(soup, platform)
+            result['author'] = ', '.join(self._extract_authors(soup))
             # Extract images for articles
             result['images'] = self._extract_images(soup, url,[
                 'img[src*="cdn"]',
@@ -573,21 +607,6 @@ class ContentScraper:
                 'article img'
             ])
         
-        # Extract author/publisher
-        if not result['author']:
-            author_selectors = [
-                '.author',
-                '.byline',
-                '[rel="author"]',
-                '.post-author',
-                '.article-author'
-            ]
-            
-            for selector in author_selectors:
-                element = soup.select_one(selector)
-                if element:
-                    result['author'] = element.get_text(strip=True)
-                    break
         
         # For non-social media, try to find publisher
         if not is_social:
@@ -615,8 +634,7 @@ class ContentScraper:
     def save_to_json(self, data, filename=None):
         """Save scraped data to JSON file"""
         if filename is None:
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            filename = f"data_{timestamp}.json"
+            filename = f"data.json"
         
         with open(filename, 'w', encoding='utf-8') as f:
             json.dump(data, f, indent=2, ensure_ascii=False)
