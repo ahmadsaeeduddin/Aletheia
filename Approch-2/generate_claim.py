@@ -1,12 +1,11 @@
 import json
-from transformers import AutoTokenizer,AutoModelForCausalLM, AutoModelForSeq2SeqLM
+from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
 import torch
 
-
-model_name = "mistralai/Mistral-7B-Instruct-v0.1"
+# Load the model and tokenizer
+model_name = "facebook/bart-large-cnn"
 tokenizer = AutoTokenizer.from_pretrained(model_name)
-model = AutoModelForCausalLM.from_pretrained(model_name)
-
+model = AutoModelForSeq2SeqLM.from_pretrained(model_name)
 
 
 class GenerateClaim:
