@@ -247,8 +247,12 @@ class ContentScraper:
             '[class*="article-content"]',
             '[class*="article-body"]',
             '[class*="story-body"]',
+            '[class*="story-content"]',
+            '[id^="story-content-"]',
+            '[class*="story-section"]',
             '[class*="post-content"]',
             '[class*="wysiwyg"]',
+            '[class*="text-component"]',
             '[class*="entry-content"]',
             'article',
             'main'
