@@ -15,6 +15,7 @@ import dateutil.parser
 import logging
 import fitz  # PyMuPDF
 import os
+import undetected_chromedriver as uc
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -30,20 +31,19 @@ class ContentScraper:
         self.wait_time = wait_time
         self.driver = None
         
+
+
     def _setup_driver(self):
-        """Setup Selenium WebDriver for dynamic content"""
         if self.driver is None:
-            chrome_options = Options()
+            options = uc.ChromeOptions()
             if self.headless:
-                chrome_options.add_argument("--headless")
-            chrome_options.add_argument("--no-sandbox")
-            chrome_options.add_argument("--disable-dev-shm-usage")
-            chrome_options.add_argument("--disable-gpu")
-            chrome_options.add_argument("--window-size=1920,1080")
-            chrome_options.add_argument("--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36")
-            
-            self.driver = webdriver.Chrome(options=chrome_options)
+                options.add_argument("--headless=new")
+            options.add_argument("--no-sandbox")
+            options.add_argument("--disable-dev-shm-usage")
+            options.add_argument("--window-size=1920,1080")
+            self.driver = uc.Chrome(options=options)
             self.driver.implicitly_wait(self.wait_time)
+
     
     def _close_driver(self):
         """Close Selenium WebDriver"""
@@ -86,6 +86,11 @@ class ContentScraper:
         try:
             self._setup_driver()
             self.driver.get(url)
+            time.sleep(5)  # Wait for potential Cloudflare redirect
+
+            if "Just a moment..." in self.driver.title:
+                logger.warning("Blocked by Cloudflare or page not yet ready.")
+                return None
 
             WebDriverWait(self.driver, self.wait_time).until(
                 EC.presence_of_element_located((By.TAG_NAME, "body"))
@@ -100,6 +105,7 @@ class ContentScraper:
         except Exception as e:
             logger.warning(f"Selenium extraction failed: {e}")
             return None
+
 
 
     def _click_read_more_buttons(self):
