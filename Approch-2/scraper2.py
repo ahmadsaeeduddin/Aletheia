@@ -1,3 +1,4 @@
+from readability import Document
 import requests
 from bs4 import BeautifulSoup
 import json
@@ -15,7 +16,6 @@ import dateutil.parser
 import logging
 import fitz  # PyMuPDF
 import os
-import undetected_chromedriver as uc
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -32,17 +32,20 @@ class ContentScraper:
         self.driver = None
         
 
-
     def _setup_driver(self):
-        if self.driver is None:
-            options = uc.ChromeOptions()
-            if self.headless:
-                options.add_argument("--headless=new")
-            options.add_argument("--no-sandbox")
-            options.add_argument("--disable-dev-shm-usage")
-            options.add_argument("--window-size=1920,1080")
-            self.driver = uc.Chrome(options=options)
-            self.driver.implicitly_wait(self.wait_time)
+            """Setup Selenium WebDriver for dynamic content"""
+            if self.driver is None:
+                chrome_options = Options()
+                if self.headless:
+                    chrome_options.add_argument("--headless")
+                chrome_options.add_argument("--no-sandbox")
+                chrome_options.add_argument("--disable-dev-shm-usage")
+                chrome_options.add_argument("--disable-gpu")
+                chrome_options.add_argument("--window-size=1920,1080")
+                chrome_options.add_argument("--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36")
+                
+                self.driver = webdriver.Chrome(options=chrome_options)
+                self.driver.implicitly_wait(self.wait_time)
 
     
     def _close_driver(self):
@@ -72,6 +75,33 @@ class ContentScraper:
 
         return domain, False
     
+
+    def _extract_readable_content(self, html):
+        try:
+            doc = Document(html)
+            title = doc.short_title()
+            summary_html = doc.summary()
+
+            soup = BeautifulSoup(summary_html, 'html.parser')
+            lines = []
+
+            for elem in soup.find_all(['h1', 'h2', 'h3','h4','h5','h6' ,'p']):
+                text = elem.get_text(strip=True)
+                if not text:
+                    continue
+                if elem.name in ['h1', 'h2', 'h3','h4','h5','h6']:
+                    lines.append(f"\n\n## {text}")
+                else:
+                    lines.append(text)
+
+            full_text = '\n\n'.join(lines)
+            return title, full_text
+        except Exception as e:
+            logger.warning(f"Readability failed: {e}")
+            return "", ""
+
+
+    
     def _extract_with_requests(self, url):
         """Try to extract content using requests + BeautifulSoup"""
         try:
@@ -86,11 +116,6 @@ class ContentScraper:
         try:
             self._setup_driver()
             self.driver.get(url)
-            time.sleep(5)  # Wait for potential Cloudflare redirect
-
-            if "Just a moment..." in self.driver.title:
-                logger.warning("Blocked by Cloudflare or page not yet ready.")
-                return None
 
             WebDriverWait(self.driver, self.wait_time).until(
                 EC.presence_of_element_located((By.TAG_NAME, "body"))
@@ -106,11 +131,8 @@ class ContentScraper:
             logger.warning(f"Selenium extraction failed: {e}")
             return None
 
-<<<<<<< HEAD
-=======
 
 
->>>>>>> 60607805eafff17851827215112b11d5591b9ff8
     def _click_read_more_buttons(self):
         """Click any 'Read More' buttons like Taboola, etc."""
         try:
@@ -279,11 +301,18 @@ class ContentScraper:
             '[class*="story-body"]',
             '[class*="story-content"]',
             '[id^="story-content-"]',
+            '[id^="article-content"]',
+            '[class*="entryContent"]',
+            '[class*="abstract"]',
             '[class*="story-section"]',
             '[class*="post-content"]',
             '[class*="wysiwyg"]',
+            '[class*="primary"]',
+            '[class*="responsiveSkin ifp-doc-type-oxencycl-entry"]',
             '[class*="text-component"]',
             '[class*="entry-content"]',
+            '[class*="e-tab-content tab-content"]'
+            '[class*="e-content-block"]'
             '[class*="elementor-post-content"]',      # WordPress/Elementor
             '[class*="elementor-widget-container"]',  # ← add this
             '[class*="elementor-element elementor-element-d72ee69 single-post-paragraph elementor-widget elementor-widget-text-editor"]',
@@ -635,6 +664,13 @@ class ContentScraper:
             # Generic article extraction
             result['text'] = self._extract_article_content(soup, platform)
             result['author'] = ', '.join(self._extract_authors(soup))
+            if not result['text'] or len(result['text']) < 200:
+                title, text = self._extract_readable_content(str(soup))
+                if title and not result['title']:
+                    result['title'] = title
+                if text:
+                    result['text'] = text
+
             # Extract images for articles
             result['images'] = self._extract_images(soup, url,[
                 'img[src*="cdn"]',
@@ -714,3 +750,14 @@ if __name__ == "__main__":
         
     except Exception as e:
         print(f"Error: {e}")
+
+
+
+
+
+
+
+
+
+
+
