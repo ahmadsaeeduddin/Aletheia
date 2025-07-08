@@ -15,6 +15,7 @@ import dateutil.parser
 import logging
 import fitz  # PyMuPDF
 import os
+import undetected_chromedriver as uc
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -30,20 +31,19 @@ class ContentScraper:
         self.wait_time = wait_time
         self.driver = None
         
+
+
     def _setup_driver(self):
-        """Setup Selenium WebDriver for dynamic content"""
         if self.driver is None:
-            chrome_options = Options()
+            options = uc.ChromeOptions()
             if self.headless:
-                chrome_options.add_argument("--headless")
-            chrome_options.add_argument("--no-sandbox")
-            chrome_options.add_argument("--disable-dev-shm-usage")
-            chrome_options.add_argument("--disable-gpu")
-            chrome_options.add_argument("--window-size=1920,1080")
-            chrome_options.add_argument("--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36")
-            
-            self.driver = webdriver.Chrome(options=chrome_options)
+                options.add_argument("--headless=new")
+            options.add_argument("--no-sandbox")
+            options.add_argument("--disable-dev-shm-usage")
+            options.add_argument("--window-size=1920,1080")
+            self.driver = uc.Chrome(options=options)
             self.driver.implicitly_wait(self.wait_time)
+
     
     def _close_driver(self):
         """Close Selenium WebDriver"""
@@ -67,9 +67,9 @@ class ContentScraper:
         }
         
         for platform_domain, platform_name in social_platforms.items():
-            if platform_domain in domain:
+            if domain == platform_domain or domain.endswith(f".{platform_domain}"):
                 return platform_name, True
-        
+
         return domain, False
     
     def _extract_with_requests(self, url):
@@ -83,23 +83,46 @@ class ContentScraper:
             return None
     
     def _extract_with_selenium(self, url):
-        """Extract content using Selenium for dynamic content"""
         try:
             self._setup_driver()
             self.driver.get(url)
-            
-            # Wait for page to load
+            time.sleep(5)  # Wait for potential Cloudflare redirect
+
+            if "Just a moment..." in self.driver.title:
+                logger.warning("Blocked by Cloudflare or page not yet ready.")
+                return None
+
             WebDriverWait(self.driver, self.wait_time).until(
                 EC.presence_of_element_located((By.TAG_NAME, "body"))
             )
-            
-            # Additional wait for dynamic content
-            time.sleep(3)
-            
+
+            time.sleep(3)  # wait for JS content
+
+            # Click read more buttons if present
+            self._click_read_more_buttons()
+
             return BeautifulSoup(self.driver.page_source, 'html.parser')
         except Exception as e:
             logger.warning(f"Selenium extraction failed: {e}")
             return None
+
+    def _click_read_more_buttons(self):
+        """Click any 'Read More' buttons like Taboola, etc."""
+        try:
+            # Match buttons that expand content, like Taboola
+            read_more_buttons = self.driver.find_elements(By.CSS_SELECTOR, 'a.tbl-read-more-btn')
+            for btn in read_more_buttons:
+                if btn.is_displayed() and btn.is_enabled():
+                    try:
+                        self.driver.execute_script("arguments[0].scrollIntoView(true);", btn)
+                        time.sleep(1)
+                        btn.click()
+                        time.sleep(2)  # Wait for content to load
+                    except Exception as click_err:
+                        logger.warning(f"Could not click read-more button: {click_err}")
+        except Exception as e:
+            logger.warning(f"Error while trying to click 'Read More': {e}")
+
     
     def _extract_meta_tags(self, soup):
         """Extract metadata from meta tags"""
@@ -173,7 +196,8 @@ class ContentScraper:
                 lines.extend(self._extract_text_from_element(child))
 
         return lines
-    
+
+
     def _extract_authors(self, soup):
         """Extract author(s) from the article page."""
         author_selectors = [
@@ -242,6 +266,7 @@ class ContentScraper:
 
     def _extract_article_content(self, soup, platform):
         """Extract structured article content without duplication, handling nested structures."""
+        # --- inside _extract_article_content ---------------------------------
         content_selectors = [
             '[itemprop="articleBody"]',
             '[class*="article-content"]',
@@ -254,6 +279,9 @@ class ContentScraper:
             '[class*="wysiwyg"]',
             '[class*="text-component"]',
             '[class*="entry-content"]',
+            '[class*="elementor-post-content"]',      # WordPress/Elementor
+            '[class*="elementor-widget-container"]',  # ← add this
+            '[class*="elementor-element elementor-element-d72ee69 single-post-paragraph elementor-widget elementor-widget-text-editor"]',
             'article',
             'main'
         ]
