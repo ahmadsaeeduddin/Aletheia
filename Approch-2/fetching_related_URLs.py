@@ -1,40 +1,73 @@
+from googlesearch import search as google_search_api
 import requests
 from bs4 import BeautifulSoup
 
-class Fetch:
-    def search_duckduckgo_lite(query, date_filter=""):
-        url = "https://lite.duckduckgo.com/lite"
-        headers = {
-            "User-Agent": "Mozilla/5.0",
-            "Content-Type": "application/x-www-form-urlencoded"
-        }
+def google_search(query, num_results=10):
+    print(f"\n🔍 Top {num_results} Google results for: \"{query}\"\n")
+    results = []
+    try:
+        for i, url in enumerate(google_search_api(query, stop=num_results), 1):
+            results.append(url)
+    except Exception as e:
+        print(f"❌ Google search failed: {e}")
+    return results
 
-        # Add filter in the form: df = "" for Any Time, "d" = Past Day, "w" = Past Week, "m" = Past Month, "y" = Past Year.
-        data = {
-            "q": query,
-            "df": date_filter  # Can be "d", "w", "m", "y" or "" for Any Time
-        }
 
+def duckduckgo_search(query, date_filter="" , site = ""):
+    url = "https://lite.duckduckgo.com/lite"
+    headers = {
+        "User-Agent": "Mozilla/5.0",
+        "Content-Type": "application/x-www-form-urlencoded"
+    }
+    data = {
+        "q": query  + " site: " + site,
+        "df": date_filter
+    }
+
+    results = []
+    try:
         response = requests.post(url, headers=headers, data=data)
         response.raise_for_status()
-
         soup = BeautifulSoup(response.text, 'html.parser')
         links = soup.find_all("a", class_="result-link")
-        return [link["href"] for link in links if link.has_attr("href")]
+        results = [link["href"] for link in links if link.has_attr("href")]
+    except Exception as e:
+        print(f"❌ DuckDuckGo search failed: {e}")
 
-# # ✅ Example usage
-# search_term = input("Enter your search query: ").strip()
-# # Optional: ask for time filter
-# filter_input = input("Time filter (empty for 'Any Time', options: d/w/m/y): ").strip().lower()
-
-# results = search_duckduckgo_lite(search_term, date_filter=filter_input)
-
-# print("\n🔗 Extracted URLs:")
-# for i, url in enumerate(results, 1):
-#     print(f"{i}. {url}")
+    return results
 
 
+if __name__ == "__main__":
+    query = input("🔎 Enter your search query: ").strip()
+    filter_input = input("📅 Time filter for DuckDuckGo (empty for 'Any Time', options: d/w/m/y): ").strip().lower()
+    
+    
 
+    google_results = google_search(query, num_results=10)
+    print("\n🌐 Google Search Results: ")
+    if google_results:
+        for i, url in enumerate(google_results, 1):
+            print(f"{i}. {url}")
+    else:
+        print("⚠️ No results from Google.")
+
+    duck_results_snopes = duckduckgo_search(query, date_filter=filter_input, site="snopes.com")
+    print("\n🦆 DuckDuckGo Search Results: [ --- Snopes --- ]")
+    if duck_results_snopes:
+        for i, url in enumerate(duck_results_snopes, 1):
+            print(f"{i}. {url}")
+    else:
+        print("⚠️ No results from DuckDuckGo.")
+        
+    duck_results_politifact = duckduckgo_search(query, date_filter=filter_input, site="politifact.com")
+    print("\n🦆 DuckDuckGo Search Results: [ --- Politifact --- ]")
+    if duck_results_politifact:
+        for i, url in enumerate(duck_results_politifact, 1):
+            print(f"{i}. {url}")
+    else:
+        print("⚠️ No results from DuckDuckGo.")
+        
+    
 # import requests
 # from bs4 import BeautifulSoup
 

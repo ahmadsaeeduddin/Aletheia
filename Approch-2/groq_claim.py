@@ -7,6 +7,8 @@ from dotenv import load_dotenv
 from sentence_transformers import SentenceTransformer
 from groq import Groq
 from sklearn.metrics.pairwise import cosine_similarity
+import spacy
+
 
 # Load .env file
 load_dotenv()
@@ -124,7 +126,6 @@ Claim:
             except Exception as e:
                 print(f"❌ Error generating claim for chunk {i + 1}: {e}")
                 continue
-
         return claims
 
     def filter_similar_claims(self, claims, threshold=0.85):
@@ -146,6 +147,22 @@ Claim:
                 print(f"⚠️ Removed similar claim: \"{claims[i]}\" (similarity: {max_sim:.2f})")
 
         return unique_claims
+    
+    def score_claims_nlp(self, claims):
+        print("\n📊 Scoring claims using NLP (Named Entity Recognition + length)...")
+        nlp = spacy.load("en_core_web_sm")
+        scored_claims = []
+
+        for claim in claims:
+            doc = nlp(claim)
+            num_entities = len(doc.ents)
+            num_tokens = len(doc)
+            score = num_entities + (0.1 * num_tokens)
+            scored_claims.append((claim, score))
+
+        # Sort by score descending
+        return sorted(scored_claims, key=lambda x: x[1], reverse=True)
+
 
 
 def load_article_text(filepath="data.json"):
@@ -170,7 +187,9 @@ if __name__ == "__main__":
     generator = GroqClaimGenerator(api_key=api_key, model_name="llama3-8b-8192")
     claims = generator.generate_claims_from_text(article_text)
     final_claims = generator.filter_similar_claims(claims)
+    scored_claims = generator.score_claims_nlp(final_claims)
 
-    print("\n✅ Final Unique Claims:")
-    for i, c in enumerate(final_claims, 1):
-        print(f"{i}. {c}")
+    print("\n🏆 Top Factful Claims (via NLP):")
+    for i, (claim, score) in enumerate(scored_claims, 1):
+        print(f"{i}. (Score: {score:.2f}) {claim}")
+
