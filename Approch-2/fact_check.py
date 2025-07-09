@@ -102,13 +102,17 @@ class FactChecker:
         # Extract title (same element as claim)
         title = claim
 
-        # Extract rating from <picture><img alt="">
-        rating_img = soup.select_one('div.c-image picture img')
+        # Extract rating and image URL from <img class="c-image__original">
+        rating_img_tag = soup.select_one('picture img[alt]')
         rating = None
-        if rating_img and 'alt' in rating_img.attrs:
-            raw_rating = rating_img['alt'].strip()
-            # Convert punctuation to space, title case it
-            rating = re.sub(r'\W+', ' ', raw_rating).title()
+        image_url = None
+
+        if rating_img_tag:
+            image_url = rating_img_tag.get('src')
+            raw_rating = rating_img_tag.get('alt', '').strip()
+            if raw_rating:
+                rating = re.sub(r'\W+', ' ', raw_rating).title()
+
 
         # Extract author (from m-author__content)
         author_tag = soup.select_one('div.m-author__content a')
@@ -118,12 +122,25 @@ class FactChecker:
         date_tag = soup.find('span', class_='m-author__date')
         publish_date = date_tag.get_text(strip=True) if date_tag else None
 
-        # Extract evidence text
-        evidence_text = ""
+        # Extract evidence text, including <header> headline
+        evidence_parts = []
+
+        # Add the header title, if it exists
+        header_tag = soup.select_one('header h1.c-title--subline')
+        if header_tag:
+            header_text = header_tag.get_text(strip=True)
+            evidence_parts.append(header_text)
+
+        # Add the article body
         evidence_section = soup.find('article', class_='m-textblock')
         if evidence_section:
             paragraphs = evidence_section.find_all('p')
-            evidence_text = " ".join(p.get_text(strip=True) for p in paragraphs)
+            for p in paragraphs:
+                evidence_parts.append(p.get_text(strip=True))
+
+        # Join everything into one evidence_text
+        evidence_text = " ".join(evidence_parts)
+
 
         # Extract sources
         sources = []
@@ -136,7 +153,6 @@ class FactChecker:
                 })
 
         # Extract image URL from any <img> with .c-image__original
-        rating_img_tag = soup.find('img', class_='c-image__original')
         image_url = rating_img_tag['src'] if rating_img_tag and 'src' in rating_img_tag.attrs else None
 
         # Final data object
@@ -157,10 +173,62 @@ class FactChecker:
             json.dump(data, f, indent=4)
 
         return data
+    
+    def scrape_reuters(self, url):
+        response = requests.get(url)
+        soup = BeautifulSoup(response.content, 'html.parser')
 
+        # Extract title (also used as claim)
+        title_tag = soup.find('h1', attrs={"data-testid": "Heading"})
+        title = title_tag.get_text(strip=True) if title_tag else None
+        claim = title
 
+        # Extract author
+        author_tag = soup.find('div', attrs={"data-testid": "AuthorName"})
+        author = author_tag.get_text(strip=True).replace("By ", "") if author_tag else None
+
+        # Extract publish date
+        time_tag = soup.find('time', attrs={"data-testid": "Body"})
+        publish_date = time_tag.get_text(strip=True) if time_tag else None
+
+        # Extract main image URL
+        image_tag = soup.select_one('img[src*="reuters.com/resizer"]')
+        image_url = image_tag['src'] if image_tag else None
+
+        # Extract evidence text from paragraphs
+        evidence_parts = []
+        for i in range(100):  # Arbitrary upper limit to capture all paragraphs
+            para_tag = soup.find('div', attrs={"data-testid": f"paragraph-{i}"})
+            if para_tag:
+                evidence_parts.append(para_tag.get_text(strip=True))
+            else:
+                break  # Stop when no more paragraph-i divs found
+
+        evidence_text = " ".join(evidence_parts)
+
+        # Sources (Reuters articles typically don’t list sources explicitly)
+        sources = []
+
+        # Final data object
+        data = {
+            "source": "Reuters",
+            "title": title,
+            "claim": claim,
+            "rating": None,  # Not applicable for Reuters
+            "author": author,
+            "publish_date": publish_date,
+            "image_url": image_url,
+            "evidence_text": evidence_text,
+            "sources": sources
+        }
+
+        # Save to facts.json
+        with open("facts.json", "w") as f:
+            json.dump(data, f, indent=4)
+
+        return data
 
 fc = FactChecker()
-url = "https://www.politifact.com/factchecks/2025/jun/24/tweets/no-kings-protest-video-falsely-described-as-showin/"
-result = fc.scrape_politifact(url)
+url = "https://www.reuters.com/legal/litigation/us-supreme-court-lifts-order-that-blocked-trumps-mass-federal-layoffs-2025-07-08/"
+result = fc.scrape_reuters(url)
 print(result)
