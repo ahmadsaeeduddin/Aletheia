@@ -174,61 +174,9 @@ class FactChecker:
 
         return data
     
-    def scrape_reuters(self, url):
-        response = requests.get(url)
-        soup = BeautifulSoup(response.content, 'html.parser')
-
-        # Extract title (also used as claim)
-        title_tag = soup.find('h1', attrs={"data-testid": "Heading"})
-        title = title_tag.get_text(strip=True) if title_tag else None
-        claim = title
-
-        # Extract author
-        author_tag = soup.find('div', attrs={"data-testid": "AuthorName"})
-        author = author_tag.get_text(strip=True).replace("By ", "") if author_tag else None
-
-        # Extract publish date
-        time_tag = soup.find('time', attrs={"data-testid": "Body"})
-        publish_date = time_tag.get_text(strip=True) if time_tag else None
-
-        # Extract main image URL
-        image_tag = soup.select_one('img[src*="reuters.com/resizer"]')
-        image_url = image_tag['src'] if image_tag else None
-
-        # Extract evidence text from paragraphs
-        evidence_parts = []
-        for i in range(100):  # Arbitrary upper limit to capture all paragraphs
-            para_tag = soup.find('div', attrs={"data-testid": f"paragraph-{i}"})
-            if para_tag:
-                evidence_parts.append(para_tag.get_text(strip=True))
-            else:
-                break  # Stop when no more paragraph-i divs found
-
-        evidence_text = " ".join(evidence_parts)
-
-        # Sources (Reuters articles typically don’t list sources explicitly)
-        sources = []
-
-        # Final data object
-        data = {
-            "source": "Reuters",
-            "title": title,
-            "claim": claim,
-            "rating": None,  # Not applicable for Reuters
-            "author": author,
-            "publish_date": publish_date,
-            "image_url": image_url,
-            "evidence_text": evidence_text,
-            "sources": sources
-        }
-
-        # Save to facts.json
-        with open("facts.json", "w") as f:
-            json.dump(data, f, indent=4)
-
-        return data
+    
 
 fc = FactChecker()
-url = "https://www.reuters.com/legal/litigation/us-supreme-court-lifts-order-that-blocked-trumps-mass-federal-layoffs-2025-07-08/"
-result = fc.scrape_reuters(url)
+url = "https://www.politifact.com/factchecks/2025/jun/24/social-media/video-of-woman-in-rainbow-hijab-in-iran-is-ai-gene/"
+result = fc.scrape_politifact(url)
 print(result)
