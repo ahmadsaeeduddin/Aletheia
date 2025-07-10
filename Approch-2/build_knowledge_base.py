@@ -5,40 +5,41 @@ from urllib.parse import urlparse
 from scraper2 import ContentScraper
 from fact_check import FactChecker
 
-# 📁 Ensure folder exists
-os.makedirs("knowledge_base", exist_ok=True)
+class KnowledgeBaseBuilder:
+    def __init__(self, kb_dir="knowledge_base"):
+        self.kb_dir = kb_dir
+        os.makedirs(self.kb_dir, exist_ok=True)
+        self.fact_checker = FactChecker()
+        self.scraper = ContentScraper()
 
-def clean_filename(url: str) -> str:
-    """Create a safe filename using domain + short hash"""
-    parsed = urlparse(url)
-    domain = parsed.netloc.replace(".", "_")
-    short_hash = hashlib.md5(url.encode()).hexdigest()[:8]
-    return f"{domain}_{short_hash}.json"
+    def _clean_filename(self, url: str) -> str:
+        """Create a safe filename using domain + short hash"""
+        parsed = urlparse(url)
+        domain = parsed.netloc.replace(".", "_")
+        short_hash = hashlib.md5(url.encode()).hexdigest()[:8]
+        return f"{domain}_{short_hash}.json"
 
-def save_json(data: dict, filename: str):
-    path = os.path.join("knowledge_base", filename)
-    with open(path, "w", encoding="utf-8") as f:
-        json.dump(data, f, indent=2, ensure_ascii=False)
-    print(f"✅ Saved: {path}")
+    def _save_json(self, data: dict, filename: str):
+        """Save the extracted data to a JSON file in the KB folder"""
+        path = os.path.join(self.kb_dir, filename)
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(data, f, indent=2, ensure_ascii=False)
+        print(f"✅ Saved: {path}")
 
-def build_knowledge_base(claim_text: str, urls: list):
-    print(f"\n🧠 Building knowledge base for claim: \"{claim_text}\"\n")
+    def build(self, claim_text: str, urls: list):
+        print(f"\n🧠 Building knowledge base for claim: \"{claim_text}\"\n")
+        for url in urls:
+            try:
+                print(f"🔍 Processing: {url}")
+                if "snopes.com" in url:
+                    data = self.fact_checker.scrape_snopes(url)
+                elif "politifact.com" in url:
+                    data = self.fact_checker.scrape_politifact(url)
+                else:
+                    data = self.scraper.scrape_content(url)
 
-    fc = FactChecker()
-    scraper = ContentScraper()
+                filename = self._clean_filename(url)
+                self._save_json(data, filename)
 
-    for url in urls:
-        try:
-            print(f"🔍 Processing: {url}")
-            if "snopes.com" in url:
-                data = fc.scrape_snopes(url)
-            elif "politifact.com" in url:
-                data = fc.scrape_politifact(url)
-            else:
-                data = scraper.scrape_content(url)
-
-            filename = clean_filename(url)
-            save_json(data, filename)
-
-        except Exception as e:
-            print(f"❌ Failed to process {url}: {e}")
+            except Exception as e:
+                print(f"❌ Failed to process {url}: {e}")
