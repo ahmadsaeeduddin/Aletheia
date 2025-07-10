@@ -218,4 +218,49 @@ classifiers = {
   <img src="https://github.com/user-attachments/assets/5ea1a946-0a31-4cfd-a37d-e034d40bfda4" width="600"/>
 </p>
 
+# Approach 2
 
+This project is a comprehensive pipeline designed to detect and validate fake news articles using modern Natural Language Processing (NLP) techniques, large language models (LLMs), and reliable fact-checking sources like **Snopes** and **PolitiFact**.
+
+### 🚀 Overview
+
+The system takes a news article as input, processes it through multiple intelligent stages — including claim extraction, reranking, web search, fact-checking, and neutral question generation — to assess the veracity of the article’s contents.
+
+#### 🧠 Key Features
+
+##### 1. **Article Scraping**
+- Uses a custom-built hybrid scraper (`scraper2.py`) combining:
+  - `requests` + `BeautifulSoup` for static content
+  - `Selenium` for dynamic or JavaScript-heavy pages
+- Automatically detects the source platform (news, PDF, social media)
+- Extracts structured data like title, text, author, publish date, and images
+
+##### 2. **Claim Generation (LLM-Powered)**
+- Uses `groq_claim.py` to:
+  - Segment long articles into chunks intelligently
+  - Use Groq’s hosted LLM (e.g., LLaMA 3) to **generate fact-checkable claims**
+  - Focus on concise, specific, one-sentence claims derived from the content
+
+##### 3. **Claim Reranking & Deduplication**
+- Claims are ranked by:
+  - Named Entity Recognition (NER)
+  - Sentence length and specificity
+- Redundant or highly similar claims are filtered using cosine similarity with `sentence-transformers` and `FAISS`
+
+##### 4. **Web Search for Evidence**
+- Uses `scraper.py` to perform:
+  - Google Search (via `googlesearch` API)
+  - DuckDuckGo Search with custom filters
+- Focused crawling from trusted sources like:
+  - [Snopes.com](https://snopes.com)
+  - [PolitiFact.com](https://politifact.com)
+
+##### 5. **Structured Fact-Check Extraction**
+- If a result is from Snopes or PolitiFact:
+  - Use `fact_check.py` to extract structured fields like:
+    - `claim`, `rating`, `evidence`, `sources`, `author`, `publish_date`
+- If not from these sources, fallback to `scraper2.py` for content extraction
+
+##### 6. **Neutral Question Generation** *(Planned)*
+- Converts final claims into **neutral yes/no questions**
+- Helps facilitate easier human or AI verification (e.g., for crowd-sourcing or automated QA)
