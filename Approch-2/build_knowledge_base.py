@@ -11,6 +11,34 @@ class KnowledgeBaseBuilder:
         os.makedirs(self.kb_dir, exist_ok=True)
         self.fact_checker = FactChecker()
         self.scraper = ContentScraper()
+   
+    def _is_invalid_content(self, data: dict) -> bool:
+        text = data.get("text", "").strip()
+        title = data.get("title", "").strip().lower()
+
+        # Generic error or filler titles
+        generic_titles = {
+            "", "page not found", "error", "403 forbidden",
+            "404 not found", "access denied", "page restricted"
+        }
+
+        # Error phrases often returned in scraped pages
+        error_phrases = [
+            "access denied", "page not found", "page restricted", "browser is outdated",
+            "verify you are human", "enable javascript", "unsupported browser", "403 forbidden"
+        ]
+
+        if not text or len(text.split()) < 30:
+            return True
+
+        if title in generic_titles:
+            return True
+
+        if any(phrase in text.lower() for phrase in error_phrases):
+            return True
+
+        return False
+
 
     def _clean_filename(self, url: str) -> str:
         """Create a safe filename using domain + short hash"""
@@ -38,8 +66,14 @@ class KnowledgeBaseBuilder:
                 else:
                     data = self.scraper.scrape_content(url)
 
+                # 🚫 Skip if the content is clearly invalid or restricted
+                if self._is_invalid_content(data):
+                    print(f"⚠️ Skipping invalid or blocked content from: {url}")
+                    continue
+
                 filename = self._clean_filename(url)
                 self._save_json(data, filename)
 
             except Exception as e:
                 print(f"❌ Failed to process {url}: {e}")
+
