@@ -33,6 +33,7 @@ def load_text_from_json(path="data.json"):
 
 def debug_clean_text_steps(text):
     cleaner = TextCleaner()
+    
     print("\nOriginal Text:")
     print(text[:500], '...\n')
 
@@ -40,16 +41,12 @@ def debug_clean_text_steps(text):
     print("After Removing HTML Tags:")
     print(text[:500], '...\n')
 
+    text = cleaner._expand_contractions(text)
+    print("After Expanding Contractions:")
+    print(text[:500], '...\n')
+
     text = cleaner._remove_urls(text)
     print("After Removing URLs:")
-    print(text[:500], '...\n')
-
-    text = cleaner._remove_punctuation(text)
-    print("After Removing Punctuation:")
-    print(text[:500], '...\n')
-
-    text = cleaner._remove_numbers(text)
-    print("After Removing Numbers:")
     print(text[:500], '...\n')
 
     text = cleaner._to_lowercase(text)
@@ -60,16 +57,8 @@ def debug_clean_text_steps(text):
     print("After Tokenizing:")
     print(tokens[:50], '...\n')
 
-    tokens = cleaner._remove_stopwords(tokens)
-    print("After Removing Stopwords:")
-    print(tokens[:50], '...\n')
-
     tokens = cleaner._lemmatize(tokens)
     print("After Lemmatization:")
-    print(tokens[:50], '...\n')
-
-    tokens = cleaner._stem(tokens)
-    print("After Stemming:")
     print(tokens[:50], '...\n')
 
     clean_text = ' '.join(tokens)
@@ -77,6 +66,7 @@ def debug_clean_text_steps(text):
     print(clean_text[:500], '...\n')
 
     return clean_text
+
 
 def main():
     # Step 1: Scrape article
