@@ -42,9 +42,9 @@ class GroqClaimGenerator:
     def adaptive_chunk_text(self, text):
         # Clip text to max 5000 words if necessary
         words = word_tokenize(text)
-        if len(words) > 5000:
-            text = " ".join(words[:5000])
-            print(" Text clipped to 5000 words.")
+        if len(words) > 8000:
+            text = " ".join(words[:8000])
+            print(" Text clipped to 8000 words.")
 
         sentences = self.sentence_split_spacy(text)
         total_sentences = len(sentences)
