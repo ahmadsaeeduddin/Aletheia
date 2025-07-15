@@ -14,7 +14,6 @@ from nltk.tokenize import sent_tokenize, word_tokenize
 
 nltk.download('punkt')
 
-
 # Load .env file
 load_dotenv()
 
@@ -45,7 +44,7 @@ class GroqClaimGenerator:
         words = word_tokenize(text)
         if len(words) > 5000:
             text = " ".join(words[:5000])
-            print("⚠️ Text clipped to 5000 words.")
+            print(" Text clipped to 5000 words.")
 
         sentences = self.sentence_split_spacy(text)
         total_sentences = len(sentences)
@@ -72,7 +71,7 @@ class GroqClaimGenerator:
 
 
     def build_faiss_index(self, chunks):
-        print("📦 Indexing text...")
+        print(" Indexing text...")
         embeddings = self.embedder.encode(chunks, convert_to_numpy=True)
         dim = embeddings.shape[1]
         index = faiss.IndexFlatL2(dim)
@@ -86,15 +85,15 @@ class GroqClaimGenerator:
 
     def generate_claim(self, context):
         prompt = f"""
-You are an expert fact-checking assistant. Your task is to read the following context and convert it into one fact-checkable, concise, and specific claim in a single sentence.
+Given the context below, extract one single, concise, and fact-checkable claim **as a sentence**.
 
-Only give the claim and nothing else.
+Respond ONLY with the claim. Do not include any extra text, such as explanations, prefaces, or formatting labels.
 
 Context:
 \"\"\"{context}\"\"\"
 
-Claim:
 """.strip()
+
 
         response = self.client.chat.completions.create(
             model=self.model_name,
@@ -103,6 +102,12 @@ Claim:
             max_tokens=100
         )
 
+        claim = response.choices[0].message.content.strip()
+
+        # Post-processing filter (optional)
+        if claim.lower().startswith("here is"):
+            claim = re.sub(r"^.*?claim in a single sentence[:\-–]*", "", claim, flags=re.IGNORECASE).strip()
+
         return response.choices[0].message.content.strip()
 
     def generate_claims_from_text(self, raw_text, title=""):
@@ -110,7 +115,7 @@ Claim:
         chunks = self.adaptive_chunk_text(text)
         index, embeddings = self.build_faiss_index(chunks)
 
-        print(f"\n🔍 Generating claims from {len(chunks)} chunks sequentially...\n")
+        print(f"\nGenerating claims from {len(chunks)} chunks sequentially...\n")
 
         claims = []
         for i, chunk in enumerate(chunks):
@@ -121,36 +126,36 @@ Claim:
                 if claim:
                     claims.append(claim)
             except Exception as e:
-                print(f"❌ Error generating claim for chunk {i + 1}: {e}")
+                print(f" Error generating claim for chunk {i + 1}: {e}")
                 continue
 
         # 🏷️ Ensure title-enhanced claim is included
         if title:
-            print("\n🧠 Enhancing title into a claim...")
+            print("\n Enhancing title into a claim...")
 
             try:
                 matched_chunk = max(chunks, key=lambda c: self.embedder.similarity(title, c))
             except Exception as e:
-                print(f"⚠️ Similarity matching failed, using fallback. Error: {e}")
+                print(f" Similarity matching failed, using fallback. Error: {e}")
                 matched_chunk = chunks[0]
 
-            print(f"📌 Title: \"{title}\" ({len(title.split())} words)")
-            print(f"📍 Matched Chunk (Preview): \"{matched_chunk[:100]}...\" ({len(matched_chunk.split())} words)")
+            print(f" Title: \"{title}\" ({len(title.split())} words)")
+            print(f" Matched Chunk (Preview): \"{matched_chunk[:100]}...\" ({len(matched_chunk.split())} words)")
 
             try:
                 enhanced_claim = self.generate_claim(matched_chunk)
                 if enhanced_claim not in claims:
                     claims.append(enhanced_claim)
-                    print(f"✅ Title-enhanced claim added:\n→ {enhanced_claim}")
+                    print(f"Title-enhanced claim added:\n→ {enhanced_claim}")
             except Exception as e:
-                print(f"❌ Error generating title-enhanced claim: {e}")
+                print(f"Error generating title-enhanced claim: {e}")
 
         return claims
 
 
 
     def filter_similar_claims(self, claims, threshold=0.85):
-        print("\n🧹 Filtering similar claims...")
+        print("\nFiltering similar claims...")
         unique_claims = []
         embeddings = self.embedder.encode(claims, convert_to_numpy=True)
 
@@ -165,12 +170,12 @@ Claim:
             if max_sim < threshold:
                 unique_claims.append(claims[i])
             else:
-                print(f"⚠️ Removed similar claim: \"{claims[i]}\" (similarity: {max_sim:.2f})")
+                print(f" Removed similar claim: \"{claims[i]}\" (similarity: {max_sim:.2f})")
 
         return unique_claims
     
     def score_claims_nlp(self, claims):
-        print("\n📊 Scoring claims using NLP (Named Entity Recognition + length)...")
+        print("\n Scoring claims using NLP (Named Entity Recognition + length)...")
         scored_claims = []
 
         for claim in claims:
@@ -181,8 +186,6 @@ Claim:
             scored_claims.append((claim, score))
 
         return sorted(scored_claims, key=lambda x: x[1], reverse=True)
-
-
 
 
 def load_article_text(filepath="data.json"):
@@ -196,12 +199,12 @@ def load_article_text(filepath="data.json"):
 if __name__ == "__main__":
     article_text, article_title = load_article_text()
     if not article_text:
-        print("🚫 No article text found.")
+        print(" No article text found.")
         exit()
 
     api_key = os.getenv("GROQ_API_KEY_4")
     if not api_key:
-        print("🚫 No API key found in .env file.")
+        print(" No API key found in .env file.")
         exit()
 
     generator = GroqClaimGenerator(api_key=api_key, model_name="llama3-8b-8192")
@@ -209,8 +212,6 @@ if __name__ == "__main__":
     final_claims = generator.filter_similar_claims(claims)
     scored_claims = generator.score_claims_nlp(final_claims)
 
-    print("\n🏆 Top Factful Claims (via NLP):")
+    print("\n Top Factful Claims (via NLP):")
     for i, (claim, score) in enumerate(scored_claims, 1):
         print(f"{i}. (Score: {score:.2f}) {claim}")
-
-
