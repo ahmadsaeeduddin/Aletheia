@@ -23,11 +23,29 @@ class TextCleaner:
         text = self._remove_html_tags(text)
         text = self._expand_contractions(text)
         text = self._remove_urls(text)
+        text = self._remove_language_noise(text)  # Add this line
+        text = self._remove_non_latin(text)
         text = self._to_lowercase(text)
         tokens = self._tokenize(text)
         tokens = self._lemmatize(tokens)
         clean_text = ' '.join(tokens)
         return clean_text
+    
+    def _remove_language_noise(self, text):
+        # Remove long lines with many languages (language clutter)
+        lines = text.split('\n')
+        clean_lines = []
+
+        for line in lines:
+            # Heuristic: line with >20 commas or >20 hyphens (language list indicators)
+            if line.count(',') > 20 or line.count('-') > 50 or len(line) > 1000:
+                continue
+            clean_lines.append(line)
+
+        return '\n'.join(clean_lines)
+
+    def _remove_non_latin(self, text):
+        return ''.join([ch if ch.isascii() else ' ' for ch in text])
 
     def _remove_html_tags(self, text):
         soup = BeautifulSoup(text, "html.parser")
