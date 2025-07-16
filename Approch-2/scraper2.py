@@ -211,7 +211,7 @@ class ContentScraper:
     def _extract_text_from_element(self, element):
         lines = []
 
-        if element.name in ['h1', 'h2', 'h3']:
+        if element.name in ['h1', 'h2', 'h3', 'h4']:
             lines.append(f"\n\n## {element.get_text(strip=True)}")
         elif element.name == 'li':
             lines.append(f"- {element.get_text(strip=True)}")
@@ -304,10 +304,12 @@ class ContentScraper:
             '[id^="article-content"]',
             '[class*="entryContent"]',
             '[class*="abstract"]',
+            '[id^="bodyContent"]',
             '[class*="story-section"]',
             '[class*="post-content"]',
             '[class*="wysiwyg"]',
             '[class*="primary"]',
+            '[class*="article-body__content__17Yit"]'
             '[class*="responsiveSkin ifp-doc-type-oxencycl-entry"]',
             '[class*="text-component"]',
             '[class*="entry-content"]',
@@ -352,7 +354,6 @@ class ContentScraper:
 
         return '\n'.join(lines)
 
-
     def _extract_tweet_images(self, soup):
         """Extract images from a tweet card on Twitter/X."""
         images = {}
@@ -373,9 +374,7 @@ class ContentScraper:
                 if match:
                     images[f'image{count}'] = match.group(1)
                     count += 1
-
         return images
-
 
     def _extract_twitter_content(self, soup):
         """Extract Twitter-specific content"""
@@ -409,9 +408,7 @@ class ContentScraper:
         
         # Extract images
         data['images'] = self._extract_tweet_images(soup)
-
         return data
-
 
     def _extract_facebook_content(self, soup):
         """Extract Facebook-specific content"""
@@ -750,14 +747,4 @@ if __name__ == "__main__":
         
     except Exception as e:
         print(f"Error: {e}")
-
-
-
-
-
-
-
-
-
-
 
