@@ -12,7 +12,7 @@ import spacy
 import nltk
 from nltk.tokenize import sent_tokenize, word_tokenize
 
-nltk.download('punkt')
+#nltk.download('punkt')
 
 # Load .env file
 load_dotenv()
@@ -40,7 +40,7 @@ class GroqClaimGenerator:
         return text.translate(str.maketrans('', '', string.punctuation))
 
     def adaptive_chunk_text(self, text):
-        # Clip text to max 5000 words if necessary
+        # Clip text to max 8000 words
         words = word_tokenize(text)
         if len(words) > 8000:
             text = " ".join(words[:8000])
@@ -49,24 +49,29 @@ class GroqClaimGenerator:
         sentences = self.sentence_split_spacy(text)
         total_sentences = len(sentences)
 
-        # Logic: 3-6 sentences per chunk, 5-12 chunks max
-        if total_sentences <= 10:
-            chunk_size = 2
-        elif total_sentences <= 30:
-            chunk_size = 3
-        elif total_sentences <= 60:
-            chunk_size = 5
+        # Define min and max chunk limits
+        min_chunks = 5
+        max_chunks = 12
+
+        # Determine chunk count within range
+        if total_sentences < min_chunks * 2:
+            num_chunks = min_chunks
+        elif total_sentences > max_chunks * 6:
+            num_chunks = max_chunks
         else:
-            chunk_size = 6
+            num_chunks = min(max_chunks, max(min_chunks, total_sentences // 5))
+
+        chunk_size = max(1, total_sentences // num_chunks)
 
         chunks = []
         for i in range(0, total_sentences, chunk_size):
             chunk = " ".join(sentences[i:i + chunk_size])
-            chunk = self.remove_punctuation(chunk)  # ✅ Remove punctuation AFTER chunking
+            chunk = self.remove_punctuation(chunk)
             chunks.append(chunk)
 
         print(f"🔹 Total sentences: {total_sentences} | Chunk size: {chunk_size} | Total chunks: {len(chunks)}")
         return chunks
+
 
 
 
@@ -188,30 +193,30 @@ Context:
         return sorted(scored_claims, key=lambda x: x[1], reverse=True)
 
 
-def load_article_text(filepath="data.json"):
-    with open(filepath, "r", encoding="utf-8") as f:
-        data = json.load(f)
-    title = data.get("title", "").strip()
-    text = data.get("text", "").strip()
-    article = f"{title}. {text}" if title and title not in text else text
-    return article, title
+# def load_article_text(filepath="data.json"):
+#     with open(filepath, "r", encoding="utf-8") as f:
+#         data = json.load(f)
+#     title = data.get("title", "").strip()
+#     text = data.get("text", "").strip()
+#     article = f"{title}. {text}" if title and title not in text else text
+#     return article, title
 
-if __name__ == "__main__":
-    article_text, article_title = load_article_text()
-    if not article_text:
-        print(" No article text found.")
-        exit()
+# if __name__ == "__main__":
+#     article_text, article_title = load_article_text()
+#     if not article_text:
+#         print(" No article text found.")
+#         exit()
 
-    api_key = os.getenv("GROQ_API_KEY_4")
-    if not api_key:
-        print(" No API key found in .env file.")
-        exit()
+#     api_key = os.getenv("GROQ_API_KEY_4")
+#     if not api_key:
+#         print(" No API key found in .env file.")
+#         exit()
 
-    generator = GroqClaimGenerator(api_key=api_key, model_name="llama3-8b-8192")
-    claims = generator.generate_claims_from_text(article_text, title=article_title)
-    final_claims = generator.filter_similar_claims(claims)
-    scored_claims = generator.score_claims_nlp(final_claims)
+#     generator = GroqClaimGenerator(api_key=api_key, model_name="llama3-8b-8192")
+#     claims = generator.generate_claims_from_text(article_text, title=article_title)
+#     final_claims = generator.filter_similar_claims(claims)
+#     scored_claims = generator.score_claims_nlp(final_claims)
 
-    print("\n Top Factful Claims (via NLP):")
-    for i, (claim, score) in enumerate(scored_claims, 1):
-        print(f"{i}. (Score: {score:.2f}) {claim}")
+#     print("\n Top Factful Claims (via NLP):")
+#     for i, (claim, score) in enumerate(scored_claims, 1):
+#         print(f"{i}. (Score: {score:.2f}) {claim}")
