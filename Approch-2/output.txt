@@ -1,0 +1,256 @@
+The system starts ..........
+Enter the article URL: https://www.aljazeera.com/sports/2025/7/8/diogo-jota-speeding-likely-cause-of-footballers-car-crash-police-say
+
+Scraping article: https://www.aljazeera.com/sports/2025/7/8/diogo-jota-speeding-likely-cause-of-footballers-car-crash-police-say
+INFO:scraper2:Starting to scrape: https://www.aljazeera.com/sports/2025/7/8/diogo-jota-speeding-likely-cause-of-footballers-car-crash-police-say
+INFO:scraper2:Data saved to data.json
+
+Original Text:
+Police: Speeding likely cause of Liverpool star Diogo Jota’s car crash. 
+
+## Diogo Jota: Speeding likely cause of footballer’s car crash, police say
+The Liverpool player is believed to have been driving at high speed when he and his brother Andre Silva died last week, according to Spanish police.
+Liverpool and Portugal star Diogo Jota was likely speeding when his car veered off a motorway in Spain last week, killing him and his brother, Spanish police said.
+The shock deaths of Jota, 28, and Andr ...
+
+Final Cleaned Text:
+police : speeding likely because of liverpool star diogo jota ’ s car crash . # # diogo jota : speeding likely because of footballer ’ s car crash , police say the liverpool player is believed to have been driving at high speed when he and his brother andre silva died last week , according to spanish police . liverpool and portugal star diogo jota wa likely speeding when his car veered off a motorway in spain last week , killing him and his brother , spanish police said . the shock death of jota ...
+
+
+Generating claims from cleaned text...
+INFO:sentence_transformers.SentenceTransformer:Use pytorch device_name: cpu
+INFO:sentence_transformers.SentenceTransformer:Load pretrained SentenceTransformer: all-MiniLM-L6-v2
+🔹 Total sentences: 15 | Chunk size: 3 | Total chunks: 5
+ Indexing text...
+Batches: 100%|██████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 1/1 [00:00<00:00, 19.70it/s]
+
+Generating claims from 5 chunks sequentially...
+
+Batches: 100%|██████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 1/1 [00:00<00:00, 99.62it/s]
+➡️ [1/5] Generating claim...
+huggingface/tokenizers: The current process just got forked, after parallelism has already been used. Disabling parallelism to avoid deadlocks...
+To disable this warning, you can either:
+	- Avoid using `tokenizers` before the fork if possible
+	- Explicitly set the environment variable TOKENIZERS_PARALLELISM=(true | false)
+INFO:httpx:HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 200 OK"
+Batches: 100%|██████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 1/1 [00:00<00:00, 70.79it/s]
+➡️ [2/5] Generating claim...
+INFO:httpx:HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 200 OK"
+Batches: 100%|██████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 1/1 [00:00<00:00, 97.61it/s]
+➡️ [3/5] Generating claim...
+INFO:httpx:HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 200 OK"
+Batches: 100%|█████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 1/1 [00:00<00:00, 118.50it/s]
+➡️ [4/5] Generating claim...
+INFO:httpx:HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 200 OK"
+Batches: 100%|█████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 1/1 [00:00<00:00, 103.52it/s]
+➡️ [5/5] Generating claim...
+INFO:httpx:HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 200 OK"
+
+Filtering similar claims...
+Batches: 100%|██████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 1/1 [00:00<00:00, 41.80it/s]
+ Removed similar claim: "Diogo Jota was likely speeding when his car veered off a motorway in Spain last week, killing him and his brother." (similarity: 0.98)
+
+ Scoring claims using NLP (Named Entity Recognition + length)...
+
+Filtered & Ranked Claims:
+1. (Score: 6.80) According to Spanish police, Diogo Jota was likely speeding when his car veered off a motorway in Spain last week, killing him and his brother.
+2. (Score: 6.10) Spanish police said the mark left by one of the vehicle's wheel and all the tests conducted so far indicate that the driver of the vehicle was Diogo Jota.
+3. (Score: 2.70) All the tests conducted so far indicate that the driver of the vehicle was Diogo Jota.
+4. (Score: 1.90) The vehicle's wheel left a mark indicating a possible excessive speed beyond the road's speed limit.
+
+Enter the number of the claim you want to extract keyphrases for.
+Or type 'all' to extract keyphrases for all claims.
+Your choice: 1
+INFO:sentence_transformers.SentenceTransformer:Use pytorch device_name: cpu
+INFO:sentence_transformers.SentenceTransformer:Load pretrained SentenceTransformer: all-MiniLM-L6-v2
+
+Extracted keyphrases for claim:
+"According to Spanish police, Diogo Jota was likely speeding when his car veered off a motorway in Spain last week, killing him and his brother."
+- diogo jota likely speeding car veered motorway spain week killing brother (Score: 0.8820)
+- diogo jota likely speeding car veered motorway spain week killing (Score: 0.8791)
+- police diogo jota likely speeding car veered motorway spain week killing brother (Score: 0.8696)
+- according spanish police diogo jota likely speeding car veered motorway spain week killing brother (Score: 0.8669)
+- police diogo jota likely speeding car veered motorway spain week killing (Score: 0.8634)
+
+[GOOGLE] Searching for: "diogo jota likely speeding car veered motorway spain week killing brother"
+[GOOGLE] Found: https://www.espn.com/soccer/story/_/id/45693980/diogo-jota-was-speeding-crashed-spanish-police-believe
+[GOOGLE] Found: https://www.aljazeera.com/sports/2025/7/8/diogo-jota-speeding-likely-cause-of-footballers-car-crash-police-say
+[GOOGLE] Found: https://www.facebook.com/Reuters/videos/liverpools-jota-likely-speeding-when-car-crashed-police-say/2546329059047867/
+[GOOGLE] Found: https://sports.yahoo.com/article/speeding-likely-cause-diogo-jota-162655301.html
+[GOOGLE] Found: https://www.ksnblocal4.com/2025/07/03/liverpool-player-diogo-jota-his-brother-killed-car-accident-spain-police-say/
+[GOOGLE] Found: https://www.reddit.com/r/billsimmons/comments/1luqp81/spanish_police_say_all_the_evidence_so_far/
+[GOOGLE] Found: https://www.facebook.com/photo.php?fbid=1170825878414927&id=100064625772115&set=a.631182369045950
+[GOOGLE] Found: https://www.reddit.com/r/PremierLeague/comments/1luq7ni/spanish_police_say_all_the_evidence_so_far/
+[GOOGLE] Found: https://www.ap.org/news-highlights/spotlights/2025/liverpool-player-diogo-jota-and-his-brother-killed-in-a-car-accident-in-spain/
+[GOOGLE] Found: https://x.com/AlArabiya_Eng/status/1942555069091573947
+[GOOGLE] Found: https://x.com/AFP/status/1942562786652954801
+[GOOGLE] Found: https://www.threads.com/@afpnewsagency/post/DL2NJWtuj6S
+[GOOGLE] Found: https://www.instagram.com/p/DL2da4tI6Zu/
+[GOOGLE] Saved 13 results to 'related_urls.txt'
+
+[DUCKDUCKGO] Searching for: "diogo jota likely speeding car veered motorway spain week killing brother"
+/home/labuser/Documents/Approch-2/search_engine.py:58: RuntimeWarning: This package (`duckduckgo_search`) has been renamed to `ddgs`! Use `pip install ddgs` instead.
+  with DDGS() as ddgs:
+INFO:primp:response: https://www.bing.com/search?q=diogo+jota+likely+speeding+car+veered+motorway+spain+week+killing+brother 200
+INFO:primp:response: https://www.bing.com/search?q=diogo+jota+likely+speeding+car+veered+motorway+spain+week+killing+brother&first=11&FORM=PERE 200
+INFO:primp:response: https://www.bing.com/search?q=diogo+jota+likely+speeding+car+veered+motorway+spain+week+killing+brother&first=21&FORM=PERE1 200
+INFO:primp:response: https://www.bing.com/search?q=diogo+jota+likely+speeding+car+veered+motorway+spain+week+killing+brother&first=31&FORM=PERE2 200
+INFO:primp:response: https://www.bing.com/search?q=diogo+jota+likely+speeding+car+veered+motorway+spain+week+killing+brother&first=41&FORM=PERE3 200
+[DUCKDUCKGO] Found: https://en.wikipedia.org/wiki/Diogo_Jota
+[DUCKDUCKGO] Found: https://www.bbc.com/news/live/cn0zr9rk81et
+[DUCKDUCKGO] Found: https://www.cnn.com/sport/live-news/diogo-jota-liverpool-star-dies-spain-spt
+[DUCKDUCKGO] Found: https://www.cnn.com/2025/07/04/sport/diogo-jota-death-what-we-know-spt
+[DUCKDUCKGO] Found: https://news.sky.com/story/diogo-jota-dies-latest-liverpool-forward-killed-in-car-crash-in-spain-two-weeks-after-his-wedding-13391750
+[DUCKDUCKGO] Found: https://www.lbc.co.uk/news/sport/who-diogo-jota-liverpool-dies/
+[DUCKDUCKGO] Found: https://www.cnn.com/2025/07/03/sport/diogo-jota-liverpool-death-spt
+[DUCKDUCKGO] Found: https://www.bbc.co.uk/sport/football/articles/cr4we9z2l42o
+[DUCKDUCKGO] Found: https://www.independent.co.uk/sport/football/diogo-jota-dead-crash-liverpool-age-b2781772.html
+[DUCKDUCKGO] Found: https://www.liverpoolfc.com/news/diogo-jota-1996-2025
+[DUCKDUCKGO] Saved 10 results to 'related_urls.txt'
+
+✅ Final 22 links saved (excluding the input URL).
+[INFO] Loaded 22 unique URLs from 'related_urls.txt'
+
+🧠 Building knowledge base for claim: "According to Spanish police, Diogo Jota was likely speeding when his car veered off a motorway in Spain last week, killing him and his brother."
+
+🔍 Processing: https://www.espn.com/soccer/story/_/id/45693980/diogo-jota-was-speeding-crashed-spanish-police-believe
+INFO:scraper2:Starting to scrape: https://www.espn.com/soccer/story/_/id/45693980/diogo-jota-was-speeding-crashed-spanish-police-believe
+✅ Saved: knowledge_base/www_espn_com_faaccdfd.json
+🔍 Processing: https://www.reddit.com/r/billsimmons/comments/1luqp81/spanish_police_say_all_the_evidence_so_far/
+INFO:scraper2:Starting to scrape: https://www.reddit.com/r/billsimmons/comments/1luqp81/spanish_police_say_all_the_evidence_so_far/
+INFO:scraper2:Using Selenium for dynamic content extraction
+huggingface/tokenizers: The current process just got forked, after parallelism has already been used. Disabling parallelism to avoid deadlocks...
+To disable this warning, you can either:
+	- Avoid using `tokenizers` before the fork if possible
+	- Explicitly set the environment variable TOKENIZERS_PARALLELISM=(true | false)
+huggingface/tokenizers: The current process just got forked, after parallelism has already been used. Disabling parallelism to avoid deadlocks...
+To disable this warning, you can either:
+	- Avoid using `tokenizers` before the fork if possible
+	- Explicitly set the environment variable TOKENIZERS_PARALLELISM=(true | false)
+ Skipping invalid or blocked content from: https://www.reddit.com/r/billsimmons/comments/1luqp81/spanish_police_say_all_the_evidence_so_far/
+🔍 Processing: https://www.facebook.com/photo.php?fbid=1170825878414927&id=100064625772115&set=a.631182369045950
+INFO:scraper2:Starting to scrape: https://www.facebook.com/photo.php?fbid=1170825878414927&id=100064625772115&set=a.631182369045950
+INFO:scraper2:Using Selenium for dynamic content extraction
+huggingface/tokenizers: The current process just got forked, after parallelism has already been used. Disabling parallelism to avoid deadlocks...
+To disable this warning, you can either:
+	- Avoid using `tokenizers` before the fork if possible
+	- Explicitly set the environment variable TOKENIZERS_PARALLELISM=(true | false)
+huggingface/tokenizers: The current process just got forked, after parallelism has already been used. Disabling parallelism to avoid deadlocks...
+To disable this warning, you can either:
+	- Avoid using `tokenizers` before the fork if possible
+	- Explicitly set the environment variable TOKENIZERS_PARALLELISM=(true | false)
+ Skipping invalid or blocked content from: https://www.facebook.com/photo.php?fbid=1170825878414927&id=100064625772115&set=a.631182369045950
+🔍 Processing: https://www.lbc.co.uk/news/sport/who-diogo-jota-liverpool-dies/
+INFO:scraper2:Starting to scrape: https://www.lbc.co.uk/news/sport/who-diogo-jota-liverpool-dies/
+✅ Saved: knowledge_base/www_lbc_co_uk_f2fcac48.json
+🔍 Processing: https://www.independent.co.uk/sport/football/diogo-jota-dead-crash-liverpool-age-b2781772.html
+INFO:scraper2:Starting to scrape: https://www.independent.co.uk/sport/football/diogo-jota-dead-crash-liverpool-age-b2781772.html
+✅ Saved: knowledge_base/www_independent_co_uk_094d85ce.json
+🔍 Processing: https://x.com/AFP/status/1942562786652954801
+INFO:scraper2:Starting to scrape: https://x.com/AFP/status/1942562786652954801
+INFO:scraper2:Using Selenium for dynamic content extraction
+huggingface/tokenizers: The current process just got forked, after parallelism has already been used. Disabling parallelism to avoid deadlocks...
+To disable this warning, you can either:
+	- Avoid using `tokenizers` before the fork if possible
+	- Explicitly set the environment variable TOKENIZERS_PARALLELISM=(true | false)
+huggingface/tokenizers: The current process just got forked, after parallelism has already been used. Disabling parallelism to avoid deadlocks...
+To disable this warning, you can either:
+	- Avoid using `tokenizers` before the fork if possible
+	- Explicitly set the environment variable TOKENIZERS_PARALLELISM=(true | false)
+✅ Saved: knowledge_base/x_com_ad6318fb.json
+🔍 Processing: https://sports.yahoo.com/article/speeding-likely-cause-diogo-jota-162655301.html
+INFO:scraper2:Starting to scrape: https://sports.yahoo.com/article/speeding-likely-cause-diogo-jota-162655301.html
+✅ Saved: knowledge_base/sports_yahoo_com_11785fd8.json
+🔍 Processing: https://x.com/AlArabiya_Eng/status/1942555069091573947
+INFO:scraper2:Starting to scrape: https://x.com/AlArabiya_Eng/status/1942555069091573947
+INFO:scraper2:Using Selenium for dynamic content extraction
+huggingface/tokenizers: The current process just got forked, after parallelism has already been used. Disabling parallelism to avoid deadlocks...
+To disable this warning, you can either:
+	- Avoid using `tokenizers` before the fork if possible
+	- Explicitly set the environment variable TOKENIZERS_PARALLELISM=(true | false)
+huggingface/tokenizers: The current process just got forked, after parallelism has already been used. Disabling parallelism to avoid deadlocks...
+To disable this warning, you can either:
+	- Avoid using `tokenizers` before the fork if possible
+	- Explicitly set the environment variable TOKENIZERS_PARALLELISM=(true | false)
+ Skipping invalid or blocked content from: https://x.com/AlArabiya_Eng/status/1942555069091573947
+🔍 Processing: https://www.bbc.co.uk/sport/football/articles/cr4we9z2l42o
+INFO:scraper2:Starting to scrape: https://www.bbc.co.uk/sport/football/articles/cr4we9z2l42o
+ Skipping invalid or blocked content from: https://www.bbc.co.uk/sport/football/articles/cr4we9z2l42o
+🔍 Processing: https://news.sky.com/story/diogo-jota-dies-latest-liverpool-forward-killed-in-car-crash-in-spain-two-weeks-after-his-wedding-13391750
+INFO:scraper2:Starting to scrape: https://news.sky.com/story/diogo-jota-dies-latest-liverpool-forward-killed-in-car-crash-in-spain-two-weeks-after-his-wedding-13391750
+✅ Saved: knowledge_base/news_sky_com_f476e00e.json
+🔍 Processing: https://www.cnn.com/sport/live-news/diogo-jota-liverpool-star-dies-spain-spt
+INFO:scraper2:Starting to scrape: https://www.cnn.com/sport/live-news/diogo-jota-liverpool-star-dies-spain-spt
+✅ Saved: knowledge_base/www_cnn_com_0f9c8bf4.json
+🔍 Processing: https://www.liverpoolfc.com/news/diogo-jota-1996-2025
+INFO:scraper2:Starting to scrape: https://www.liverpoolfc.com/news/diogo-jota-1996-2025
+✅ Saved: knowledge_base/www_liverpoolfc_com_2f5296bd.json
+🔍 Processing: https://www.cnn.com/2025/07/03/sport/diogo-jota-liverpool-death-spt
+INFO:scraper2:Starting to scrape: https://www.cnn.com/2025/07/03/sport/diogo-jota-liverpool-death-spt
+✅ Saved: knowledge_base/www_cnn_com_86879ec1.json
+🔍 Processing: https://www.reddit.com/r/PremierLeague/comments/1luq7ni/spanish_police_say_all_the_evidence_so_far/
+INFO:scraper2:Starting to scrape: https://www.reddit.com/r/PremierLeague/comments/1luq7ni/spanish_police_say_all_the_evidence_so_far/
+INFO:scraper2:Using Selenium for dynamic content extraction
+huggingface/tokenizers: The current process just got forked, after parallelism has already been used. Disabling parallelism to avoid deadlocks...
+To disable this warning, you can either:
+	- Avoid using `tokenizers` before the fork if possible
+	- Explicitly set the environment variable TOKENIZERS_PARALLELISM=(true | false)
+huggingface/tokenizers: The current process just got forked, after parallelism has already been used. Disabling parallelism to avoid deadlocks...
+To disable this warning, you can either:
+	- Avoid using `tokenizers` before the fork if possible
+	- Explicitly set the environment variable TOKENIZERS_PARALLELISM=(true | false)
+ Skipping invalid or blocked content from: https://www.reddit.com/r/PremierLeague/comments/1luq7ni/spanish_police_say_all_the_evidence_so_far/
+🔍 Processing: https://www.threads.com/@afpnewsagency/post/DL2NJWtuj6S
+INFO:scraper2:Starting to scrape: https://www.threads.com/@afpnewsagency/post/DL2NJWtuj6S
+INFO:readability.readability:ruthless removal did not work. 
+ Skipping invalid or blocked content from: https://www.threads.com/@afpnewsagency/post/DL2NJWtuj6S
+🔍 Processing: https://www.bbc.com/news/live/cn0zr9rk81et
+INFO:scraper2:Starting to scrape: https://www.bbc.com/news/live/cn0zr9rk81et
+ Skipping invalid or blocked content from: https://www.bbc.com/news/live/cn0zr9rk81et
+🔍 Processing: https://www.ap.org/news-highlights/spotlights/2025/liverpool-player-diogo-jota-and-his-brother-killed-in-a-car-accident-in-spain/
+INFO:scraper2:Starting to scrape: https://www.ap.org/news-highlights/spotlights/2025/liverpool-player-diogo-jota-and-his-brother-killed-in-a-car-accident-in-spain/
+WARNING:scraper2:Requests extraction failed: 403 Client Error: Forbidden for url: https://www.ap.org/news-highlights/spotlights/2025/liverpool-player-diogo-jota-and-his-brother-killed-in-a-car-accident-in-spain/
+INFO:scraper2:Using Selenium for dynamic content extraction
+huggingface/tokenizers: The current process just got forked, after parallelism has already been used. Disabling parallelism to avoid deadlocks...
+To disable this warning, you can either:
+	- Avoid using `tokenizers` before the fork if possible
+	- Explicitly set the environment variable TOKENIZERS_PARALLELISM=(true | false)
+huggingface/tokenizers: The current process just got forked, after parallelism has already been used. Disabling parallelism to avoid deadlocks...
+To disable this warning, you can either:
+	- Avoid using `tokenizers` before the fork if possible
+	- Explicitly set the environment variable TOKENIZERS_PARALLELISM=(true | false)
+ Skipping invalid or blocked content from: https://www.ap.org/news-highlights/spotlights/2025/liverpool-player-diogo-jota-and-his-brother-killed-in-a-car-accident-in-spain/
+🔍 Processing: https://en.wikipedia.org/wiki/Diogo_Jota
+INFO:scraper2:Starting to scrape: https://en.wikipedia.org/wiki/Diogo_Jota
+✅ Saved: knowledge_base/en_wikipedia_org_7af3ce7c.json
+🔍 Processing: https://www.instagram.com/p/DL2da4tI6Zu/
+INFO:scraper2:Starting to scrape: https://www.instagram.com/p/DL2da4tI6Zu/
+INFO:scraper2:Using Selenium for dynamic content extraction
+huggingface/tokenizers: The current process just got forked, after parallelism has already been used. Disabling parallelism to avoid deadlocks...
+To disable this warning, you can either:
+	- Avoid using `tokenizers` before the fork if possible
+	- Explicitly set the environment variable TOKENIZERS_PARALLELISM=(true | false)
+huggingface/tokenizers: The current process just got forked, after parallelism has already been used. Disabling parallelism to avoid deadlocks...
+To disable this warning, you can either:
+	- Avoid using `tokenizers` before the fork if possible
+	- Explicitly set the environment variable TOKENIZERS_PARALLELISM=(true | false)
+ Skipping invalid or blocked content from: https://www.instagram.com/p/DL2da4tI6Zu/
+🔍 Processing: https://www.facebook.com/Reuters/videos/liverpools-jota-likely-speeding-when-car-crashed-police-say/2546329059047867/
+INFO:scraper2:Starting to scrape: https://www.facebook.com/Reuters/videos/liverpools-jota-likely-speeding-when-car-crashed-police-say/2546329059047867/
+INFO:scraper2:Using Selenium for dynamic content extraction
+huggingface/tokenizers: The current process just got forked, after parallelism has already been used. Disabling parallelism to avoid deadlocks...
+To disable this warning, you can either:
+	- Avoid using `tokenizers` before the fork if possible
+	- Explicitly set the environment variable TOKENIZERS_PARALLELISM=(true | false)
+huggingface/tokenizers: The current process just got forked, after parallelism has already been used. Disabling parallelism to avoid deadlocks...
+To disable this warning, you can either:
+	- Avoid using `tokenizers` before the fork if possible
+	- Explicitly set the environment variable TOKENIZERS_PARALLELISM=(true | false)
+ Skipping invalid or blocked content from: https://www.facebook.com/Reuters/videos/liverpools-jota-likely-speeding-when-car-crashed-police-say/2546329059047867/
+🔍 Processing: https://www.ksnblocal4.com/2025/07/03/liverpool-player-diogo-jota-his-brother-killed-car-accident-spain-police-say/
+INFO:scraper2:Starting to scrape: https://www.ksnblocal4.com/2025/07/03/liverpool-player-diogo-jota-his-brother-killed-car-accident-spain-police-say/
+✅ Saved: knowledge_base/www_ksnblocal4_com_f313a880.json
+🔍 Processing: https://www.cnn.com/2025/07/04/sport/diogo-jota-death-what-we-know-spt
+INFO:scraper2:Starting to scrape: https://www.cnn.com/2025/07/04/sport/diogo-jota-death-what-we-know-spt
+✅ Saved: knowledge_base/www_cnn_com_a81976a5.json
+sys:1: DeprecationWarning: builtin type swigvarlink has no __module__ attribute
