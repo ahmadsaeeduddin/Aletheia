@@ -11,6 +11,19 @@ class KnowledgeBaseBuilder:
         os.makedirs(self.kb_dir, exist_ok=True)
         self.fact_checker = FactChecker()
         self.scraper = ContentScraper()
+
+    def load_unique_urls(self, file_path="related_urls.txt") -> list:
+        if not os.path.exists(file_path):
+            print(f"[ERROR] File '{file_path}' not found.")
+            return []
+
+        with open(file_path, "r", encoding="utf-8") as f:
+            urls = {line.strip() for line in f if line.strip()}
+
+        print(f"[INFO] Loaded {len(urls)} unique URLs from '{file_path}'")
+
+        return list(urls)
+
    
     def _is_invalid_content(self, data: dict) -> bool:
         text = data.get("text", "").strip()
@@ -66,14 +79,13 @@ class KnowledgeBaseBuilder:
                 else:
                     data = self.scraper.scrape_content(url)
 
-                # 🚫 Skip if the content is clearly invalid or restricted
+                # Skip if the content is clearly invalid or restricted
                 if self._is_invalid_content(data):
-                    print(f"⚠️ Skipping invalid or blocked content from: {url}")
+                    print(f" Skipping invalid or blocked content from: {url}")
                     continue
 
                 filename = self._clean_filename(url)
                 self._save_json(data, filename)
 
             except Exception as e:
-                print(f"❌ Failed to process {url}: {e}")
-
+                print(f" Failed to process {url}: {e}")
