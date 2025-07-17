@@ -3,7 +3,6 @@ from bs4 import BeautifulSoup
 import json
 import re
 
-
 class FactChecker:
     def __init__(self):
         pass
@@ -176,7 +175,7 @@ class FactChecker:
     
     
 
-fc = FactChecker()
-url = "https://www.politifact.com/factchecks/2025/jun/24/social-media/video-of-woman-in-rainbow-hijab-in-iran-is-ai-gene/"
-result = fc.scrape_politifact(url)
-print(result)
+# fc = FactChecker()
+# url = "https://www.politifact.com/factchecks/2025/jun/24/social-media/video-of-woman-in-rainbow-hijab-in-iran-is-ai-gene/"
+# result = fc.scrape_politifact(url)
+# print(result)

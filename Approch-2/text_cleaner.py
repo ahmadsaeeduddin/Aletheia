@@ -9,9 +9,9 @@ from nltk.corpus import stopwords
 from sklearn.feature_extraction.text import TfidfVectorizer
 
 # Download required resources
-nltk.download('punkt')
-nltk.download('wordnet')
-nltk.download('omw-1.4')
+# nltk.download('punkt')
+# nltk.download('wordnet')
+# nltk.download('omw-1.4')
 
 class TextCleaner:
     def __init__(self, max_features=5000):

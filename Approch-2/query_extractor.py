@@ -30,11 +30,11 @@ class DynamicKeyPhraseExtractor:
 
         return keyphrases
 
-if __name__ == "__main__":
-    extractor = DynamicKeyPhraseExtractor()
-    claim = input("Enter your claim: ")
-    keyphrases = extractor.get_meaningful_phrases(claim)
+# if __name__ == "__main__":
+#     extractor = DynamicKeyPhraseExtractor()
+#     claim = input("Enter your claim: ")
+#     keyphrases = extractor.get_meaningful_phrases(claim)
 
-    print("\nExtracted meaningful phrases:")
-    for phrase, score in keyphrases:
-        print(f"- {phrase}")
+#     print("\nExtracted meaningful phrases:")
+#     for phrase, score in keyphrases:
+#         print(f"- {phrase}")
