@@ -1,78 +1,100 @@
 import os
 import json
-import re
-from sklearn.metrics.pairwise import cosine_similarity
-from sklearn.feature_extraction.text import TfidfVectorizer
-
+from sentence_transformers import SentenceTransformer, util
 from text_cleaner import TextCleaner
 
 
 class EvidenceExtractor:
-    def __init__(self, kb_folder="knowledge_base", similarity_threshold=0.3):
+    def __init__(self, kb_folder="knowledge_base", similarity_threshold=0.5, top_k=3):
+        self.model = SentenceTransformer('all-MiniLM-L6-v2')
         self.kb_folder = kb_folder
         self.similarity_threshold = similarity_threshold
+        self.top_k = top_k
         self.cleaner = TextCleaner()
-        self.vectorizer = TfidfVectorizer(stop_words='english')
 
     def extract_evidence_for_claim(self, claim):
         evidence_list = []
+        seen_evidence_keys = set()
 
         print(f"\n🔍 Extracting evidence for claim:\n\"{claim}\"\n")
 
-        # Iterate over all files in the knowledge base folder
         for filename in os.listdir(self.kb_folder):
             if not filename.endswith(".json"):
                 continue
 
             file_path = os.path.join(self.kb_folder, filename)
-            with open(file_path, "r", encoding="utf-8") as f:
-                try:
+            try:
+                with open(file_path, "r", encoding="utf-8") as f:
                     data = json.load(f)
-                except Exception as e:
-                    print(f"⚠️ Failed to load {filename}: {e}")
-                    continue
+            except Exception as e:
+                print(f"⚠️ Failed to load {filename}: {e}")
+                continue
 
             platform = data.get("platform", "unknown")
             is_social_media = data.get("is_social_media", False)
             raw_text = data.get("text", "")
 
-            # Clean and segment the text
             cleaned_text = self.cleaner.clean_text(raw_text)
             sentences = self.cleaner.segment_sentences(cleaned_text)
 
             if not sentences:
                 continue
 
-            # Compute similarity between claim and all sentences
-            similarity, matched_index = self._find_best_matching_index(claim, sentences)
+            top_matches = self._find_top_k_matches(claim, sentences)
 
-            if similarity >= self.similarity_threshold:
-                context_sentences = self._get_context(sentences, matched_index)
+            for score, idx in top_matches:
+                if score < self.similarity_threshold:
+                    continue
+
+                context_sentences = self._get_context(sentences, idx)
+                evidence_text = " ".join(context_sentences)
+
+                # Avoid duplicates using hash of the evidence text
+                if evidence_text in seen_evidence_keys:
+                    continue
+                seen_evidence_keys.add(evidence_text)
 
                 evidence_entry = {
                     "platform": platform,
                     "is_social_media": is_social_media,
+                    "similarity_score": round(score, 3),
                     "evidence": context_sentences
                 }
                 evidence_list.append(evidence_entry)
-                print(f"✅ Match found in: {filename} (similarity: {similarity:.2f})")
-            else:
-                print(f"❌ No match >= {self.similarity_threshold} in: {filename}")
+
+                print(f"✅ Match found in: {filename} (score: {score:.2f})")
+
+        if not evidence_list:
+            print("🚫 No relevant evidence found.")
 
         return evidence_list
 
-    def _find_best_matching_index(self, claim, sentences):
-        all_sentences = [claim] + sentences
-        tfidf_matrix = self.vectorizer.fit_transform(all_sentences)
+    def _find_top_k_matches(self, claim, sentences, top_k=None):
+        top_k = top_k or self.top_k
+        k = min(top_k, len(sentences))  # Don't ask for more than available
 
-        claim_vector = tfidf_matrix[0]
-        sentence_vectors = tfidf_matrix[1:]
+        if k == 0:
+            return []
 
-        similarities = cosine_similarity(claim_vector, sentence_vectors).flatten()
-        best_idx = similarities.argmax()
-        best_score = similarities[best_idx]
+        claim_embedding = self.model.encode(claim, convert_to_tensor=True)
+        sentence_embeddings = self.model.encode(sentences, convert_to_tensor=True)
 
-        return best_score, best_idx
+        similarities = util.pytorch_cos_sim(claim_embedding, sentence_embeddings)
+
+        if similarities.ndim == 0:  # Extremely rare case
+            similarities = similarities.unsqueeze(0)
+
+        similarities = similarities[0]  # Get similarities as a flat vector
+        top_k_result = similarities.topk(k)
+
+        # ✅ Convert top indices to list
+        top_indices = top_k_result.indices.tolist()
+        top_scores = top_k_result.values.tolist()
+
+        return list(zip(top_scores, top_indices))
+
+
+
 
     def _get_context(self, sentences, idx):
         # Fetch one sentence before and one after, if they exist
@@ -90,9 +112,10 @@ class EvidenceExtractor:
         print(f"\n💾 Saved evidence to: {output_path}")
 
 
-# Run independently for testing
-if __name__ == "__main__":
-    claim_input = input("Enter claim: ").strip()
-    extractor = EvidenceExtractor()
-    evidence = extractor.extract_evidence_for_claim(claim_input)
-    extractor.save_evidence_to_json(evidence)
+# # Run independently for testing
+# if __name__ == "__main__":
+#     claim_input = input("Enter claim: ").strip()
+#     extractor = EvidenceExtractor()
+#     evidence = extractor.extract_evidence_for_claim(claim_input)
+#     extractor.save_evidence_to_json(evidence)
+
