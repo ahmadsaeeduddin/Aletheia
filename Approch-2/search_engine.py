@@ -1,7 +1,7 @@
 import os
 from dotenv import load_dotenv
 from serpapi import GoogleSearch
-from duckduckgo_search import DDGS
+from ddgs import DDGS
 
 load_dotenv()  # Load environment variables from .env file
 

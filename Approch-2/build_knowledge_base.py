@@ -4,6 +4,8 @@ import json
 from urllib.parse import urlparse
 from scraper2 import ContentScraper
 from fact_check import FactChecker
+from concurrent.futures import ThreadPoolExecutor
+from tqdm import tqdm  # Optional progress bar
 
 class KnowledgeBaseBuilder:
     def __init__(self, kb_dir="knowledge_base"):
@@ -67,9 +69,17 @@ class KnowledgeBaseBuilder:
             json.dump(data, f, indent=2, ensure_ascii=False)
         print(f"✅ Saved: {path}")
 
-    def build(self, claim_text: str, urls: list):
+    
+    def build(self, claim_text: str, urls: list, max_workers: int = 5):
+        # Clean the knowledge base directory before adding new files
+        for filename in os.listdir(self.kb_dir):
+            if filename.endswith(".json"):
+                os.remove(os.path.join(self.kb_dir, filename))
+        print("🧹 Cleared old knowledge base files.\n")
+        
         print(f"\n🧠 Building knowledge base for claim: \"{claim_text}\"\n")
-        for url in urls:
+
+        def process_url(url):
             try:
                 print(f"🔍 Processing: {url}")
                 if "snopes.com" in url:
@@ -79,13 +89,17 @@ class KnowledgeBaseBuilder:
                 else:
                     data = self.scraper.scrape_content(url)
 
-                # Skip if the content is clearly invalid or restricted
                 if self._is_invalid_content(data):
                     print(f" Skipping invalid or blocked content from: {url}")
-                    continue
+                    return
 
                 filename = self._clean_filename(url)
                 self._save_json(data, filename)
 
             except Exception as e:
                 print(f" Failed to process {url}: {e}")
+
+        # Use thread pool for parallel scraping
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            list(tqdm(executor.map(process_url, urls), total=len(urls)))
+        print("\n✅ Knowledge base build complete.")

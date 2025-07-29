@@ -25,7 +25,6 @@ class GroqClaimGenerator:
         self.client = Groq(api_key=api_key)
         self.nlp = spacy.load("en_core_web_md")  # Load once and reuse
 
-
     def preprocess_text(self, text):
         text = re.sub(r"\s+", " ", text)
         text = re.sub(r"\[[^\]]*\]", "", text)
@@ -34,7 +33,6 @@ class GroqClaimGenerator:
     def sentence_split_spacy(self, text):
         doc = self.nlp(text)
         return [sent.text.strip() for sent in doc.sents]
-
 
     def remove_punctuation(self, text):
         return text.translate(str.maketrans('', '', string.punctuation))
@@ -72,9 +70,6 @@ class GroqClaimGenerator:
         print(f"🔹 Total sentences: {total_sentences} | Chunk size: {chunk_size} | Total chunks: {len(chunks)}")
         return chunks
 
-
-
-
     def build_faiss_index(self, chunks):
         print(" Indexing text...")
         embeddings = self.embedder.encode(chunks, convert_to_numpy=True)
@@ -90,30 +85,38 @@ class GroqClaimGenerator:
 
     def generate_claim(self, context):
         prompt = f"""
-Given the context below, extract one single, concise, and fact-checkable claim **as a sentence**.
+Given the context below, extract one single, concise, and fact-checkable claim **as a complete sentence**.
 
-Respond ONLY with the claim. Do not include any extra text, such as explanations, prefaces, or formatting labels.
+The claim must:
+- Be self-contained with essential context (who, what, when, where)
+- Avoid pronouns without clear antecedents
+- Be specific and verifiable
+- Be between 8-20 words
+- Not contain phrases like "according to" or "the article states"
+
+Respond ONLY with the claim. Do not include any extra text.
 
 Context:
 \"\"\"{context}\"\"\"
-
 """.strip()
-
 
         response = self.client.chat.completions.create(
             model=self.model_name,
             messages=[{"role": "user", "content": prompt}],
-            temperature=0.3,
-            max_tokens=100
+            temperature=0.2,  # Lower temperature for more focused results
+            max_tokens=50
         )
 
         claim = response.choices[0].message.content.strip()
-
-        # Post-processing filter (optional)
-        if claim.lower().startswith("here is"):
-            claim = re.sub(r"^.*?claim in a single sentence[:\-–]*", "", claim, flags=re.IGNORECASE).strip()
-
-        return response.choices[0].message.content.strip()
+        
+        # Enhanced post-processing
+        if claim.lower().startswith(("claim:", "here is", "the claim is")):
+            claim = re.sub(r"^(claim:|here is (the )?claim( in a single sentence)?[:\-–\s]*", "", claim, flags=re.IGNORECASE).strip()
+        
+        # Remove quotation marks if present
+        claim = re.sub(r'^["\'](.*)["\']$', r'\1', claim)
+        
+        return claim
 
     def generate_claims_from_text(self, raw_text, title=""):
         text = self.preprocess_text(raw_text)
@@ -129,7 +132,9 @@ Context:
             try:
                 claim = self.generate_claim(context)
                 if claim:
-                    claims.append(claim)
+                    # Basic filtering before adding
+                    if len(claim.split()) >= 5 and not claim.endswith('?'):
+                        claims.append(claim)
             except Exception as e:
                 print(f" Error generating claim for chunk {i + 1}: {e}")
                 continue
@@ -149,7 +154,7 @@ Context:
 
             try:
                 enhanced_claim = self.generate_claim(matched_chunk)
-                if enhanced_claim not in claims:
+                if enhanced_claim and enhanced_claim not in claims:
                     claims.append(enhanced_claim)
                     print(f"Title-enhanced claim added:\n→ {enhanced_claim}")
             except Exception as e:
@@ -157,26 +162,60 @@ Context:
 
         return claims
 
+    def filter_claims_by_quality(self, claims):
+        """Filter out claims that are too vague or poorly formed"""
+        print("\nFiltering low-quality claims...")
+        filtered_claims = []
+        
+        for claim in claims:
+            # Skip claims that are too short
+            if len(claim.split()) < 5:
+                print(f" Removed short claim: {claim}")
+                continue
+                
+            # Skip claims with pronouns without clear references
+            doc = self.nlp(claim)
+            has_named_entity = any(ent.label_ in ['PERSON', 'ORG', 'GPE', 'LOC'] for ent in doc.ents)
+            has_pronouns = any(token.pos_ == 'PRON' for token in doc)
+            
+            if has_pronouns and not has_named_entity:
+                print(f" Removed vague claim (ambiguous pronouns): {claim}")
+                continue
+                
+            # Skip claims that are questions
+            if claim.strip().endswith('?'):
+                print(f" Removed question-form claim: {claim}")
+                continue
+                
+            filtered_claims.append(claim)
+            
+        return filtered_claims
 
-
-    def filter_similar_claims(self, claims, threshold=0.85):
+    def filter_similar_claims(self, claims, threshold=0.88):  # Increased threshold
         print("\nFiltering similar claims...")
+        if not claims:
+            return []
+            
         unique_claims = []
         embeddings = self.embedder.encode(claims, convert_to_numpy=True)
 
         for i, emb in enumerate(embeddings):
-            if i == 0:
+            is_duplicate = False
+            
+            # Compare with all previous claims
+            if i > 0:
+                sims = cosine_similarity([emb], embeddings[:i])[0]
+                max_sim = max(sims) if len(sims) > 0 else 0
+                
+                if max_sim > threshold:
+                    most_similar_index = sims.argmax()
+                    print(f" Removed similar claim: \"{claims[i]}\"")
+                    print(f"   (similar to: \"{claims[most_similar_index]}\" | similarity: {max_sim:.2f})")
+                    is_duplicate = True
+            
+            if not is_duplicate:
                 unique_claims.append(claims[i])
-                continue
-
-            sims = cosine_similarity([emb], embeddings[:i])[0]
-            max_sim = max(sims)
-
-            if max_sim < threshold:
-                unique_claims.append(claims[i])
-            else:
-                print(f" Removed similar claim: \"{claims[i]}\" (similarity: {max_sim:.2f})")
-
+                
         return unique_claims
     
     def score_claims_nlp(self, claims):
@@ -193,30 +232,33 @@ Context:
         return sorted(scored_claims, key=lambda x: x[1], reverse=True)
 
 
-# def load_article_text(filepath="data.json"):
-#     with open(filepath, "r", encoding="utf-8") as f:
-#         data = json.load(f)
-#     title = data.get("title", "").strip()
-#     text = data.get("text", "").strip()
-#     article = f"{title}. {text}" if title and title not in text else text
-#     return article, title
+def load_article_text(filepath="data.json"):
+    with open(filepath, "r", encoding="utf-8") as f:
+        data = json.load(f)
+    title = data.get("title", "").strip()
+    text = data.get("text", "").strip()
+    article = f"{title}. {text}" if title and title not in text else text
+    return article, title
 
-# if __name__ == "__main__":
-#     article_text, article_title = load_article_text()
-#     if not article_text:
-#         print(" No article text found.")
-#         exit()
+if __name__ == "__main__":
+    article_text, article_title = load_article_text()
+    if not article_text:
+        print(" No article text found.")
+        exit()
 
-#     api_key = os.getenv("GROQ_API_KEY_4")
-#     if not api_key:
-#         print(" No API key found in .env file.")
-#         exit()
+    api_key = os.getenv("GROQ_API_KEY_4")
+    if not api_key:
+        print(" No API key found in .env file.")
+        exit()
 
-#     generator = GroqClaimGenerator(api_key=api_key, model_name="llama3-8b-8192")
-#     claims = generator.generate_claims_from_text(article_text, title=article_title)
-#     final_claims = generator.filter_similar_claims(claims)
-#     scored_claims = generator.score_claims_nlp(final_claims)
+    generator = GroqClaimGenerator(api_key=api_key, model_name="llama3-8b-8192")
+    claims = generator.generate_claims_from_text(article_text, title=article_title)
+    
+    # Apply quality filters
+    quality_filtered_claims = generator.filter_claims_by_quality(claims)
+    final_claims = generator.filter_similar_claims(quality_filtered_claims)
+    scored_claims = generator.score_claims_nlp(final_claims)
 
-#     print("\n Top Factful Claims (via NLP):")
-#     for i, (claim, score) in enumerate(scored_claims, 1):
-#         print(f"{i}. (Score: {score:.2f}) {claim}")
+    print("\n🏆 Top Factual Claims:")
+    for i, (claim, score) in enumerate(scored_claims, 1):
+        print(f"{i}. (Score: {score:.2f}) {claim}")
