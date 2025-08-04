@@ -232,33 +232,33 @@ Context:
         return sorted(scored_claims, key=lambda x: x[1], reverse=True)
 
 
-def load_article_text(filepath="data.json"):
-    with open(filepath, "r", encoding="utf-8") as f:
-        data = json.load(f)
-    title = data.get("title", "").strip()
-    text = data.get("text", "").strip()
-    article = f"{title}. {text}" if title and title not in text else text
-    return article, title
+# def load_article_text(filepath="data.json"):
+#     with open(filepath, "r", encoding="utf-8") as f:
+#         data = json.load(f)
+#     title = data.get("title", "").strip()
+#     text = data.get("text", "").strip()
+#     article = f"{title}. {text}" if title and title not in text else text
+#     return article, title
 
-if __name__ == "__main__":
-    article_text, article_title = load_article_text()
-    if not article_text:
-        print(" No article text found.")
-        exit()
+# if __name__ == "__main__":
+#     article_text, article_title = load_article_text()
+#     if not article_text:
+#         print(" No article text found.")
+#         exit()
 
-    api_key = os.getenv("GROQ_API_KEY_4")
-    if not api_key:
-        print(" No API key found in .env file.")
-        exit()
+#     api_key = os.getenv("GROQ_API_KEY_4")
+#     if not api_key:
+#         print(" No API key found in .env file.")
+#         exit()
 
-    generator = GroqClaimGenerator(api_key=api_key, model_name="llama3-8b-8192")
-    claims = generator.generate_claims_from_text(article_text, title=article_title)
+#     generator = GroqClaimGenerator(api_key=api_key, model_name="llama3-8b-8192")
+#     claims = generator.generate_claims_from_text(article_text, title=article_title)
     
-    # Apply quality filters
-    quality_filtered_claims = generator.filter_claims_by_quality(claims)
-    final_claims = generator.filter_similar_claims(quality_filtered_claims)
-    scored_claims = generator.score_claims_nlp(final_claims)
+#     # Apply quality filters
+#     quality_filtered_claims = generator.filter_claims_by_quality(claims)
+#     final_claims = generator.filter_similar_claims(quality_filtered_claims)
+#     scored_claims = generator.score_claims_nlp(final_claims)
 
-    print("\n🏆 Top Factual Claims:")
-    for i, (claim, score) in enumerate(scored_claims, 1):
-        print(f"{i}. (Score: {score:.2f}) {claim}")
+#     print("\n🏆 Top Factual Claims:")
+#     for i, (claim, score) in enumerate(scored_claims, 1):
+#         print(f"{i}. (Score: {score:.2f}) {claim}")
