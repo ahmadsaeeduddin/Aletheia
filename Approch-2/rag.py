@@ -1,32 +1,40 @@
 import os
 import json
+import re
 import time
-import fitz  # PyMuPDF
+import logging
+from fpdf import FPDF
+import PyPDF2
 import faiss
 import numpy as np
-from fpdf import FPDF
-from sentence_transformers import SentenceTransformer, util
+from typing import List, Tuple
+from langchain.text_splitter import RecursiveCharacterTextSplitter
+from sentence_transformers import SentenceTransformer
 from groq import Groq
 
-from dotenv import load_dotenv
-load_dotenv()
+# Suppress TensorFlow warnings
+os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
+logging.getLogger('tensorflow').setLevel(logging.ERROR)
 
-
-class ClaimFactChecker:
-    def __init__(self, json_folder, pdf_path, groq_api_key):
+class FactCheckerPipeline:
+    def __init__(self, json_folder, output_pdf_path, groq_api_key, model_name="all-MiniLM-L6-v2"):
         self.json_folder = json_folder
-        self.original_pdf_path = pdf_path
-        self.pdf_path = ""
+        self.output_pdf_path = output_pdf_path
         self.groq_api_key = groq_api_key
-        self.model = SentenceTransformer('all-MiniLM-L6-v2')
+        self.text_splitter = RecursiveCharacterTextSplitter(
+            chunk_size=800,
+            chunk_overlap=100,
+            length_function=len,
+            separators=["\n\n", "\n", ". ", " ", ""]
+        )
+        self.embedder = SentenceTransformer(model_name)
+        self.dimension = self.embedder.get_sentence_embedding_dimension()
+        self.index = faiss.IndexFlatL2(self.dimension)
         self.chunks = []
-        self.index = None
 
-    def clean_text(self, text):
-        return text.encode('latin-1', 'replace').decode('latin-1')
-
+    # === Step 1: Merge JSON files into a PDF ===
     def merge_json_to_pdf(self):
-        print("📄 Merging JSON files into PDF...")
         pdf = FPDF()
         pdf.set_auto_page_break(auto=True, margin=15)
         pdf.add_page()
@@ -34,93 +42,102 @@ class ClaimFactChecker:
 
         for filename in os.listdir(self.json_folder):
             if filename.endswith('.json'):
-                with open(os.path.join(self.json_folder, filename), 'r', encoding='utf-8') as f:
-                    try:
-                        data = json.load(f)
-                        title = data.get("title", "No Title")
-                        text = data.get("text", "No Text")
+                file_path = os.path.join(self.json_folder, filename)
+                with open(file_path, 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+                    content = json.dumps(data, indent=2)
+                    pdf.multi_cell(0, 10, content)
+                    pdf.ln(10)
 
-                        pdf.set_font("Arial", 'B', size=14)
-                        pdf.multi_cell(0, 10, self.clean_text(f"Title: {title}"))
-                        pdf.set_font("Arial", size=12)
-                        pdf.multi_cell(0, 10, self.clean_text(text))
-                        pdf.ln(10)
-                    except json.JSONDecodeError:
-                        print(f"⚠️ Warning: Could not decode {filename}")
-                        continue
+        pdf.output(self.output_pdf_path)
 
-        # Create timestamped PDF name
-        timestamp = int(time.time())
-        self.pdf_path = self.original_pdf_path.replace(".pdf", f"_{timestamp}.pdf")
-        pdf.output(self.pdf_path)
-        print(f"✅ PDF created at: {self.pdf_path}")
+    # === Step 2: Extract and chunk PDF text ===
+    def ingest_document(self) -> List[str]:
+        with open(self.output_pdf_path, 'rb') as file:
+            pdf_reader = PyPDF2.PdfReader(file)
+            text = ""
+            for page in pdf_reader.pages:
+                page_text = page.extract_text()
+                if page_text:
+                    page_text = re.sub(r'\n\s*\n', '\n\n', page_text)
+                    page_text = re.sub(r'\s+', ' ', page_text)
+                    text += page_text + "\n"
 
-    def extract_text_chunks(self, chunk_size=500):
-        print("📑 Extracting and chunking text from PDF...")
-        doc = fitz.open(self.pdf_path)
-        full_text = ""
-        for page in doc:
-            full_text += page.get_text()
-        self.chunks = [full_text[i:i + chunk_size] for i in range(0, len(full_text), chunk_size)]
+        if not text.strip():
+            raise ValueError("Document is empty or could not be read.")
 
-    def retrieve_context(self, claim, top_k=3):
-        print("🔍 Retrieving relevant context for the claim...")
-        query_emb = self.model.encode([claim], batch_size=1, convert_to_tensor=True)
-        chunk_embs = self.model.encode(self.chunks, batch_size=32, convert_to_tensor=True)
+        self.chunks = self.text_splitter.split_text(text)
+        print(f"Debug: Extracted {len(self.chunks)} chunks.")
+        return self.chunks
 
-        scores = util.cos_sim(query_emb, chunk_embs)[0]
-        top_k_idx = np.argsort(-scores.cpu().numpy())[:top_k]
+    # === Step 3: Embed and index chunks with FAISS ===
+    def create_embeddings(self) -> None:
+        embeddings = self.embedder.encode(self.chunks, convert_to_numpy=True)
+        self.index.reset()
+        self.index.add(embeddings)
+        print(f"Debug: FAISS index created with shape {embeddings.shape}")
 
-        top_chunks = [self.chunks[i] for i in top_k_idx]
-        return "\n\n---\n\n".join(top_chunks)
+    # === Step 4: Retrieve relevant chunks ===
+    def retrieve_context(self, claim: str, top_k: int = 30) -> List[str]:
+        query_embedding = self.embedder.encode([claim], convert_to_numpy=True)
+        top_k = min(top_k, len(self.chunks))
+        distances, indices = self.index.search(query_embedding, top_k)
+        results = []
+        for i, idx in enumerate(indices[0]):
+            if idx >= 0 and idx < len(self.chunks):
+                results.append(self.chunks[idx])
+        print(f"Debug: Retrieved {len(results)} chunks for claim.")
+        return results
 
-    def classify_claim_with_groq(self, claim, context):
+    # === Step 5: Use Groq for fact-checking ===
+    def classify_claim_with_groq(self, claim: str, context_chunks: List[str]) -> str:
         client = Groq(api_key=self.groq_api_key)
+        context = "\n".join(context_chunks)
 
         prompt = f"""
-You are a professional fact-checking AI.
+You are a professional fact-checking AI assisting in validating claims based on available contextual evidence.
 
-Below is a CLAIM and several CONTEXT EXCERPTS retrieved from a knowledge base of trusted news sources. Your task is to:
-- Determine if the claim is supported, refuted, or not addressed by the context.
-- Explain why, using specific parts of the context as evidence.
+## Task:
+Given the following set of contextual statements, your job is to evaluate the veracity of a specific claim using the evidence provided.
 
-CLAIM:
+## Claim:
 "{claim}"
 
-CONTEXT:
+## Context:
 {context}
 
-Respond in the following format:
-Label: <True / Refuted / Conflicting Evidence / Lack of Evidence>
-Justification: <Short explanation with specific references to the context>
+## Classification Guidelines:
+Classify the claim into **one** of the following categories:
+
+1. **Supported** — The claim is backed by sufficient and credible evidence found in the context.
+2. **Refuted** — The claim is directly contradicted by evidence found in the context.
+3. **Not Enough Evidence** — There is insufficient or inconclusive evidence in the context to support or refute the claim.
+4. **Conflicting Evidence / Cherrypicking** — There is factual evidence both supporting and refuting the claim, suggesting potential cherry-picking or inconsistent data.
+
+## Instructions:
+- Return only one of the classification labels.
+- Provide a **clear and detailed justification** in **structured bullet points**.
+- Each bullet point should cite or paraphrase relevant information from the provided context.
+- Remain neutral and objective — do not infer or assume facts not present in the context.
 """
 
+
         response = client.chat.completions.create(
-            model="llama3-8b-8192",
+            model="llama3-70b-8192",
             messages=[
-                {"role": "system", "content": "You are an AI assistant specialized in fact-checking and logical reasoning."},
+                {"role": "system", "content": "You are an AI assistant specialized in fact-checking."},
                 {"role": "user", "content": prompt}
             ]
         )
-
         return response.choices[0].message.content.strip()
 
-    def run_pipeline(self, claim):
+    # === Run Full Pipeline ===
+    def run_pipeline(self, claim: str) -> str:
+        print("Running Fact-Checker Pipeline...")
         self.merge_json_to_pdf()
-        self.extract_text_chunks()
-        context = self.retrieve_context(claim)
-
-        print("\n🤖 Classifying claim using Groq...")
-        result = self.classify_claim_with_groq(claim, context)
-
-        print("\n🔎 Claim:", claim)
-        print("\n✅ Classification Result:\n", result)
-
-
-# if __name__ == "__main__":
-#     json_folder = "C:\\Users\\Saeed\\Desktop\\Genesys-Lab\\FakeNewsDetection\\Approch-2\\knowledge_base"
-#     pdf_path = "knowledge_base.pdf"
-#     groq_api_key = os.getenv("GROQ_API_KEY_4")
-
-#     checker = ClaimFactChecker(json_folder, pdf_path, groq_api_key)
-#     checker.run_pipeline("ronaldo won the world cup in 2022")
+        self.ingest_document()
+        self.create_embeddings()
+        context_chunks = self.retrieve_context(claim)
+        result = self.classify_claim_with_groq(claim, context_chunks)
+        print("\n🧠 Groq Classification Result:\n", result)
+        return result

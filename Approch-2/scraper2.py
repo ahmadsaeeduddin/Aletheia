@@ -304,6 +304,7 @@ class ContentScraper:
             '[id^="article-content"]',
             '[class*="entryContent"]',
             '[class*="abstract"]',
+            '[class*="container"]',
             '[id^="bodyContent"]',
             '[class*="story-section"]',
             '[class*="post-content"]',
@@ -724,27 +725,27 @@ def scrape_url(url, output_file=None):
         raise
 
 
-# Example usage
-# if __name__ == "__main__":
-#     # Ask for user input
-#     url = input("Please enter a URL to scrape: ")
+#Example usage
+if __name__ == "__main__":
+    # Ask for user input
+    url = input("Please enter a URL to scrape: ")
     
-#     scraper = ContentScraper()
+    scraper = ContentScraper()
     
-#     try:
-#         print(f"\nScraping: {url}")
-#         result = scraper.scrape_content(url)
+    try:
+        print(f"\nScraping: {url}")
+        result = scraper.scrape_content(url)
         
-#         # Print summary
-#         print(f"Platform: {result['platform']}")
-#         print(f"Title: {result['title'][:100]}...")
-#         print(f"Text length: {len(result['text'])} characters")
-#         print(f"Author: {result['author']}")
-#         print(f"Published: {result['published_date']}")
+        # Print summary
+        print(f"Platform: {result['platform']}")
+        print(f"Title: {result['title'][:100]}...")
+        print(f"Text length: {len(result['text'])} characters")
+        print(f"Author: {result['author']}")
+        print(f"Published: {result['published_date']}")
         
-#         # Save to JSON
-#         scraper.save_to_json(result)
+        # Save to JSON
+        scraper.save_to_json(result)
         
-#     except Exception as e:
-#         print(f"Error: {e}")
+    except Exception as e:
+        print(f"Error: {e}")
 

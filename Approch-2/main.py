@@ -9,7 +9,7 @@ from query_extractor import DynamicKeyPhraseExtractor
 from search_engine import WebSearcher
 from build_knowledge_base import KnowledgeBaseBuilder
 import time
-from rag import ClaimFactChecker
+from rag import FactCheckerPipeline
 
 # Load API keys
 load_dotenv()
@@ -26,14 +26,14 @@ BOLD = "\033[1m"
 def show(msg, style=RESET):
     print(f"{style}{msg}{RESET}")
 
-def step_1_scrape_article(url: str, save_file="data.json"):
+def step_1_scrape_article(url: str, save_file="knowledge_base/data.json"):
     show(f"\n🔍 Scraping article: {url}", CYAN + BOLD)
     scraper = ContentScraper()
     result = scraper.scrape_content(url)
     scraper.save_to_json(result, save_file)
     return result
 
-def load_text_from_json(path="data.json"):
+def load_text_from_json(path="knowledge_base/data.json"):
     with open(path, "r", encoding="utf-8") as f:
         data = json.load(f)
     title = data.get("title", "")
@@ -81,7 +81,7 @@ def step_4_extract_keywords(claim):
         show(f"• {phrase} (Score: {score:.4f})", GREEN)
     return keyphrases
 
-def step_5_search_related_links(query, input_url, save_file="related_urls.txt"):
+def step_5_search_related_links(query, input_url, save_file="knowledge_base/related_urls.txt"):
     searcher = WebSearcher(save_file=save_file)
     duck_links = searcher.duckduckgo_search(query)
     google_links = searcher.google_search(query)
@@ -94,7 +94,7 @@ def step_5_search_related_links(query, input_url, save_file="related_urls.txt"):
 
     show(f"\n✅ Final {len(all_links)} links saved (excluding the input URL).", GREEN)
 
-def step_6_build_knowledge_base(claim_text, url_file="related_urls.txt"):
+def step_6_build_knowledge_base(claim_text, url_file="knowledge_base/related_urls.txt"):
     kb_builder = KnowledgeBaseBuilder()
     urls = kb_builder.load_unique_urls(url_file)
 
@@ -122,9 +122,9 @@ def main():
             step_5_search_related_links(top_phrase, input_url="")
             step_6_build_knowledge_base(user_claim)
 
-            rag_checker = ClaimFactChecker(
+            rag_checker = FactCheckerPipeline(
                 json_folder="knowledge_base",
-                pdf_path="knowledge_base.pdf",
+                output_pdf_path="knowledge_base/knowledge_base.pdf",
                 groq_api_key=GROQ_API_KEY
             )
             rag_checker.run_pipeline(user_claim)
@@ -140,7 +140,7 @@ def main():
     # Step 1
     t1 = time.perf_counter()
     article_data = step_1_scrape_article(input_url)
-    raw_text = load_text_from_json("data.json")
+    raw_text = load_text_from_json("knowledge_base/data.json")
     t2 = time.perf_counter()
     show(f"⏱️ Time to scrape: {t2 - t1:.2f}s", YELLOW)
 
@@ -181,7 +181,7 @@ def main():
 
                 rag_checker = ClaimFactChecker(
                     json_folder="knowledge_base",
-                    pdf_path="knowledge_base.pdf",
+                    pdf_path="knowledge_base/knowledge_base.pdf",
                     groq_api_key=GROQ_API_KEY
                 )
                 rag_checker.run_pipeline(claim)
@@ -198,7 +198,7 @@ def main():
 
                 rag_checker = ClaimFactChecker(
                     json_folder="knowledge_base",
-                    pdf_path="knowledge_base.pdf",
+                    pdf_path="knowledge_base/knowledge_base.pdf",
                     groq_api_key=GROQ_API_KEY
                 )
                 rag_checker.run_pipeline(selected_claim)
