@@ -6,6 +6,7 @@ from scraper2 import ContentScraper
 from groq_claim import GroqClaimGenerator
 from text_cleaner import TextCleaner
 from query_extractor import DynamicKeyPhraseExtractor
+from claim_time_normalizer import ClaimTimeNormalizer
 from search_engine import WebSearcher
 from build_knowledge_base import KnowledgeBaseBuilder
 import time
@@ -13,7 +14,7 @@ from rag import FactCheckerPipeline
 
 # Load API keys
 load_dotenv()
-GROQ_API_KEY = os.getenv("GROQ_API_KEY_4")
+GROQ_API_KEY = os.getenv("GROQ_API_KEY_2")
 
 # ANSI Colors
 RESET = "\033[0m"
@@ -26,14 +27,21 @@ BOLD = "\033[1m"
 def show(msg, style=RESET):
     print(f"{style}{msg}{RESET}")
 
-def step_1_scrape_article(url: str, save_file="knowledge_base/data.json"):
+def step_0_normalize_claim_time(claim: str):
+    normalizer = ClaimTimeNormalizer(api_key=GROQ_API_KEY)
+    normalized_claim = normalizer.normalize(claim)
+    show(f"\n🕒 Normalized Claim: {normalized_claim}", CYAN + BOLD)
+    return normalized_claim
+
+
+def step_1_scrape_article(url: str, save_file="data.json"):
     show(f"\n🔍 Scraping article: {url}", CYAN + BOLD)
     scraper = ContentScraper()
     result = scraper.scrape_content(url)
     scraper.save_to_json(result, save_file)
     return result
 
-def load_text_from_json(path="knowledge_base/data.json"):
+def load_text_from_json(path="data.json"):
     with open(path, "r", encoding="utf-8") as f:
         data = json.load(f)
     title = data.get("title", "")
@@ -81,7 +89,7 @@ def step_4_extract_keywords(claim):
         show(f"• {phrase} (Score: {score:.4f})", GREEN)
     return keyphrases
 
-def step_5_search_related_links(query, input_url, save_file="knowledge_base/related_urls.txt"):
+def step_5_search_related_links(query, input_url, save_file="related_urls.txt"):
     searcher = WebSearcher(save_file=save_file)
     duck_links = searcher.duckduckgo_search(query)
     google_links = searcher.google_search(query)
@@ -94,7 +102,7 @@ def step_5_search_related_links(query, input_url, save_file="knowledge_base/rela
 
     show(f"\n✅ Final {len(all_links)} links saved (excluding the input URL).", GREEN)
 
-def step_6_build_knowledge_base(claim_text, url_file="knowledge_base/related_urls.txt"):
+def step_6_build_knowledge_base(claim_text, url_file="related_urls.txt"):
     kb_builder = KnowledgeBaseBuilder()
     urls = kb_builder.load_unique_urls(url_file)
 
@@ -116,18 +124,24 @@ def main():
 
     if choice == "2":
         user_claim = input(f"\n{BOLD}Enter the claim to check: {RESET}").strip()
-        keyphrases = step_4_extract_keywords(user_claim)
+
+        # Step 0: Normalize temporal expressions
+        normalized_claim = step_0_normalize_claim_time(user_claim)
+
+        # Step 4: Extract keyphrases
+        keyphrases = step_4_extract_keywords(normalized_claim)
+
         if keyphrases:
             top_phrase = keyphrases[0][0]
             step_5_search_related_links(top_phrase, input_url="")
-            step_6_build_knowledge_base(user_claim)
+            step_6_build_knowledge_base(normalized_claim)
 
             rag_checker = FactCheckerPipeline(
                 json_folder="knowledge_base",
-                output_pdf_path="knowledge_base/knowledge_base.pdf",
+                output_pdf_path="knowledge_base.pdf",
                 groq_api_key=GROQ_API_KEY
             )
-            rag_checker.run_pipeline(user_claim)
+            rag_checker.run_pipeline(normalized_claim)
         return
 
     elif choice != "1":
@@ -140,7 +154,7 @@ def main():
     # Step 1
     t1 = time.perf_counter()
     article_data = step_1_scrape_article(input_url)
-    raw_text = load_text_from_json("knowledge_base/data.json")
+    raw_text = load_text_from_json("data.json")
     t2 = time.perf_counter()
     show(f"⏱️ Time to scrape: {t2 - t1:.2f}s", YELLOW)
 
@@ -181,7 +195,7 @@ def main():
 
                 rag_checker = ClaimFactChecker(
                     json_folder="knowledge_base",
-                    pdf_path="knowledge_base/knowledge_base.pdf",
+                    pdf_path="knowledge_base.pdf",
                     groq_api_key=GROQ_API_KEY
                 )
                 rag_checker.run_pipeline(claim)
@@ -198,7 +212,7 @@ def main():
 
                 rag_checker = ClaimFactChecker(
                     json_folder="knowledge_base",
-                    pdf_path="knowledge_base/knowledge_base.pdf",
+                    pdf_path="knowledge_base.pdf",
                     groq_api_key=GROQ_API_KEY
                 )
                 rag_checker.run_pipeline(selected_claim)
