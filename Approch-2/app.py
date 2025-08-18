@@ -4,7 +4,9 @@ import os
 import json
 import time
 from dotenv import load_dotenv
-
+import threading
+import uuid
+from pathlib import Path
 # Import your existing modules
 from scraper2 import ContentScraper
 from groq_claim import GroqClaimGenerator
@@ -18,27 +20,36 @@ from rag import FactCheckerPipeline
 load_dotenv()
 
 app = Flask(__name__, static_folder='.', static_url_path='')  # Serves files from current directory
-CORS(app)  # Enable CORS for frontend communication
+# Enable CORS for all origins (any IP/domain)
+CORS(app, resources={r"/*": {"origins": ["http://149.40.228.126:5000", "https://localhost:5000"]}})
 
 # Configuration
-GROQ_API_KEY = os.getenv("GROQ_API_KEY_5")
-
+GROQ_API_KEY = os.getenv("GROQ_API_KEY_1")
 
 class FakeNewsDetectionAPI:
     def __init__(self):
         self.groq_api_key = GROQ_API_KEY
-        self.results_cache = {}  # Simple in-memory cache
+        self.results_cache = {}
 
-    def scrape_article(self, url, save_file="knowledge_base/data.json"):
+    def get_unique_kb_path(self):
+        thread_id = threading.get_ident()
+        unique_id = uuid.uuid4().hex[:8]
+        folder = f"knowledge_base/session_{thread_id}_{unique_id}"
+        os.makedirs(folder, exist_ok=True)
+        return folder
+
+    def scrape_article(self, url, session_folder):
         try:
             scraper = ContentScraper()
             result = scraper.scrape_content(url)
-            scraper.save_to_json(result, save_file)
+            save_path = os.path.join(session_folder, "data.json")
+            scraper.save_to_json(result, save_path)
             return result
         except Exception as e:
             raise Exception(f"Failed to scrape article: {str(e)}")
 
-    def load_text_from_json(self, path="knowledge_base/data.json"):
+    def load_text_from_json(self, session_folder):
+        path = os.path.join(session_folder, "data.json")
         try:
             with open(path, "r", encoding="utf-8") as f:
                 data = json.load(f)
@@ -85,8 +96,9 @@ class FakeNewsDetectionAPI:
         except Exception as e:
             raise Exception(f"Failed to extract keywords: {str(e)}")
 
-    def search_related_links(self, query, input_url="", save_file="knowledge_base/related_urls.txt"):
+    def search_related_links(self, query, input_url="", session_folder=None):
         try:
+            save_file = os.path.join(session_folder, "related_urls.txt")
             searcher = WebSearcher(save_file=save_file)
             duck_links = searcher.duckduckgo_search(query)
             google_links = searcher.google_search(query)
@@ -103,24 +115,25 @@ class FakeNewsDetectionAPI:
         except Exception as e:
             raise Exception(f"Failed to search related links: {str(e)}")
 
-    def build_knowledge_base(self, claim_text, url_file="knowledge_base/related_urls.txt"):
+    def build_knowledge_base(self, claim_text, session_folder):
         try:
+            url_file = os.path.join(session_folder, "related_urls.txt")
             kb_builder = KnowledgeBaseBuilder()
             urls = kb_builder.load_unique_urls(url_file)
 
             if not urls:
                 return False
 
-            kb_builder.build(claim_text, urls)
+            kb_builder.build(claim_text, urls, output_dir=session_folder)
             return True
         except Exception as e:
             raise Exception(f"Failed to build knowledge base: {str(e)}")
 
-    def run_fact_check(self, claim):
+    def run_fact_check(self, claim, session_folder):
         try:
             rag_checker = FactCheckerPipeline(
-                json_folder="knowledge_base",
-                output_pdf_path="knowledge_base/knowledge_base.pdf",
+                json_folder=session_folder,
+                output_pdf_path=os.path.join(session_folder, "knowledge_base.pdf"),
                 groq_api_key=self.groq_api_key
             )
             result = rag_checker.run_pipeline(claim)
@@ -129,53 +142,71 @@ class FakeNewsDetectionAPI:
             raise Exception(f"Failed to run fact check: {str(e)}")
 
     def analyze_claim_pipeline(self, claim_text):
+        session_folder = self.get_unique_kb_path()
+        print(f"[DEBUG] Session folder created at: {session_folder}")
+        print(f"[DEBUG] Claim text received: {claim_text}")
+
         try:
             keyphrases = self.extract_keywords(claim_text)
+            print(f"[DEBUG] Keyphrases extracted: {keyphrases}")
+
             if not keyphrases:
-                return {
-                    "success": False,
-                    "error": "Could not extract meaningful keywords from the claim"
-                }
+                return {"success": False, "error": "No keywords extracted"}
 
             top_phrase = keyphrases[0][0]
-            related_links = self.search_related_links(top_phrase)
+            print(f"[DEBUG] Top keyphrase for search: {top_phrase}")
 
-            kb_built = self.build_knowledge_base(claim_text)
-            if not kb_built:
-                return {
-                    "success": False,
-                    "error": "Could not build knowledge base - no reliable sources found"
-                }
+            related_links = self.search_related_links(top_phrase, session_folder=session_folder)
+            print(f"[DEBUG] Found {len(related_links)} related links")
 
-            fact_check_result = self.run_fact_check(claim_text)
+            kb_built = self.build_knowledge_base(claim_text, session_folder=session_folder)
+            print(f"[DEBUG] Knowledge base built: {kb_built}")
+
+            fact_check_result = self.run_fact_check(claim_text, session_folder=session_folder)
+            print(f"[DEBUG] Fact check result: {fact_check_result}")
 
             return {
                 "success": True,
                 "claim": claim_text,
                 "keyphrases": keyphrases[:5],
                 "sources_found": len(related_links),
-                "fact_check_result": fact_check_result,
-                "verdict": self.extract_verdict(fact_check_result),
-                "confidence": self.extract_confidence(fact_check_result),
-                "explanation": self.extract_explanation(fact_check_result)
+                "fact_check_result": fact_check_result
             }
+
 
         except Exception as e:
-            return {
-                "success": False,
-                "error": str(e)
-            }
+            print(f"[ERROR] analyze_claim_pipeline failed: {str(e)}")
+            return {"success": False, "error": str(e)}
+
 
     def analyze_url_pipeline(self, url):
+        session_folder = self.get_unique_kb_path()
+        print(f"[DEBUG] New session folder: {session_folder}")
+        print(f"[DEBUG] Analyzing URL: {url}")
+
         try:
-            article_data = self.scrape_article(url)
-            raw_text = self.load_text_from_json("knowledge_base/data.json")
+            # Step 1: Scrape article
+            print("[DEBUG] Scraping article...")
+            article_data = self.scrape_article(url, session_folder)
+            print(f"[DEBUG] Article scraped. Title: {article_data.get('title', 'N/A')}")
 
+            # Step 2: Load and clean text
+            print("[DEBUG] Loading raw text from JSON...")
+            raw_text = self.load_text_from_json(session_folder)
+            print(f"[DEBUG] Raw text length: {len(raw_text)} characters")
+
+            print("[DEBUG] Cleaning text...")
             clean_text = self.clean_text(raw_text)
+            print(f"[DEBUG] Cleaned text length: {len(clean_text)} characters")
 
+            # Step 3: Generate claims
+            print("[DEBUG] Generating claims...")
             ranked_claims = self.generate_claims(clean_text)
+            print(f"[DEBUG] Number of ranked claims: {len(ranked_claims)}")
 
+            # If no claims found
             if not ranked_claims:
+                print("[DEBUG] No verifiable claims found.")
                 return {
                     "success": True,
                     "url": url,
@@ -183,20 +214,26 @@ class FakeNewsDetectionAPI:
                     "claims": []
                 }
 
+            # Step 4: Process top 3 claims
             processed_claims = []
             top_claims = ranked_claims[:3]
+            print(f"[DEBUG] Processing top {len(top_claims)} claims...")
 
-            for claim, score in top_claims:
+            for i, (claim, score) in enumerate(top_claims):
+                print(f"[DEBUG] Analyzing claim {i+1}: {claim} (score: {score})")
                 claim_result = self.analyze_claim_pipeline(claim)
+                print(f"[DEBUG] Claim {i+1} analysis result: {claim_result.get('verdict', 'N/A')}")
 
                 processed_claim = {
                     "text": claim,
                     "score": score,
-                    "verdict": claim_result.get("verdict", "Unknown") if claim_result.get("success") else "Error",
-                    "confidence": claim_result.get("confidence", "N/A") if claim_result.get("success") else "N/A",
-                    "explanation": claim_result.get("explanation", "Analysis failed") if claim_result.get("success") else claim_result.get("error", "Unknown error")
+                    "fact_check_result": claim_result.get("fact_check_result", "") if claim_result.get("success") else claim_result.get("error", "Analysis failed")
                 }
+
                 processed_claims.append(processed_claim)
+
+            # Step 5: Return success response
+            print(f"[DEBUG] Successfully processed {len(processed_claims)} claims.")
 
             return {
                 "success": True,
@@ -207,30 +244,12 @@ class FakeNewsDetectionAPI:
             }
 
         except Exception as e:
+            print(f"[ERROR] analyze_url_pipeline failed: {str(e)}")
             return {
                 "success": False,
                 "error": str(e),
                 "url": url
             }
-
-    def extract_verdict(self, fact_check_result):
-        if isinstance(fact_check_result, dict):
-            return fact_check_result.get("verdict", "Analysis Complete")
-        elif isinstance(fact_check_result, str):
-            if "false" in fact_check_result.lower():
-                return "Likely False"
-            elif "true" in fact_check_result.lower():
-                return "Likely True"
-            elif "misleading" in fact_check_result.lower():
-                return "Misleading"
-            else:
-                return "Needs Further Investigation"
-        return "Analysis Complete"
-
-    def extract_confidence(self, fact_check_result):
-        if isinstance(fact_check_result, dict):
-            return fact_check_result.get("confidence", "Medium")
-        return "Medium"
 
     def extract_explanation(self, fact_check_result):
         if isinstance(fact_check_result, dict):
@@ -280,6 +299,8 @@ def analyze_claim():
 
         future = executor.submit(detection_api.analyze_claim_pipeline, claim_text)
         result = future.result()  # waits for the task but doesn't block other clients
+
+        print(f"[DEBUG] Result: {result}")
 
         if result["success"]:
             return jsonify(result), 200
